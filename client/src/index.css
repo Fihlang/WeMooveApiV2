@@ -28,8 +28,8 @@
   --background: 0 0% 98%;
   --foreground: 20 14.3% 4.1%;
   
-  --muted: 60 4.8% 95.9%;
-  --muted-foreground: 25 5.3% 44.7%;
+  --muted: 246 5% 96%;
+  --muted-foreground: 250 5% 45%;
   
   --popover: 0 0% 100%;
   --popover-foreground: 20 14.3% 4.1%;
@@ -37,17 +37,20 @@
   --card: 0 0% 100%;
   --card-foreground: 20 14.3% 4.1%;
   
-  --border: 20 5.9% 90%;
-  --input: 20 5.9% 90%;
+  --border: 246 5% 90%;
+  --input: 246 5% 90%;
   
-  --primary: 264 49% 52%;
+  /* WeMove Primary Indigo */
+  --primary: 246 60% 55%;
   --primary-foreground: 0 0% 100%;
   
-  --secondary: 46 100% 62%;
-  --secondary-foreground: 20 14.3% 4.1%;
+  /* WeMove Secondary Pink-Purple */
+  --secondary: 300 55% 55%;
+  --secondary-foreground: 0 0% 100%;
   
-  --accent: 0 75% 70%;
-  --accent-foreground: 0 0% 100%;
+  /* WeMove Accent Yellow */
+  --accent: 40 100% 60%;
+  --accent-foreground: 20 14.3% 15%;
   
   --destructive: 0 84.2% 60.2%;
   --destructive-foreground: 60 9.1% 97.8%;
@@ -58,47 +61,51 @@
   --info: 206 70% 53%;
   --info-foreground: 0 0% 100%;
   
-  --light: 210 17% 98%;
-  --dark: 210 10% 23%;
+  --light: 246 17% 98%;
+  --dark: 246 30% 20%;
   
-  --lightgray: 210 16% 93%;
+  --lightgray: 246 16% 93%;
   
-  --ring: 264 49% 52%;
-  --radius: 0.5rem;
+  --ring: 246 60% 55%;
+  --radius: 0.75rem;
   
-  --chart-1: 264 49% 52%;
-  --chart-2: 46 100% 62%;
-  --chart-3: 0 75% 70%;
-  --chart-4: 206 70% 53%;
-  --chart-5: 142 69% 49%;
+  /* Chart colors */
+  --chart-1: 246 60% 55%;
+  --chart-2: 300 55% 55%;
+  --chart-3: 40 100% 60%;
+  --chart-4: 330 80% 60%;
+  --chart-5: 180 60% 50%;
 }
 
 .dark {
-  --background: 240 10% 3.9%;
-  --foreground: 0 0% 98%;
+  --background: 246 25% 5%;
+  --foreground: 246 10% 96%;
   
-  --muted: 240 3.7% 15.9%;
-  --muted-foreground: 240 5% 64.9%;
+  --muted: 246 20% 15%;
+  --muted-foreground: 246 10% 70%;
   
-  --popover: 240 10% 3.9%;
-  --popover-foreground: 0 0% 98%;
+  --popover: 246 25% 5%;
+  --popover-foreground: 246 10% 96%;
   
-  --card: 240 10% 3.9%;
-  --card-foreground: 0 0% 98%;
+  --card: 246 25% 8%;
+  --card-foreground: 246 10% 96%;
   
-  --border: 240 3.7% 15.9%;
-  --input: 240 3.7% 15.9%;
+  --border: 246 20% 18%;
+  --input: 246 20% 18%;
   
-  --primary: 264 49% 52%;
-  --primary-foreground: 0 0% 98%;
+  /* WeMove Primary Indigo - Dark Mode */
+  --primary: 246 60% 65%;
+  --primary-foreground: 246 10% 5%;
   
-  --secondary: 46 100% 62%;
-  --secondary-foreground: 20 14.3% 4.1%;
+  /* WeMove Secondary Pink-Purple - Dark Mode */
+  --secondary: 300 55% 65%;
+  --secondary-foreground: 246 10% 5%;
   
-  --accent: 0 75% 70%;
-  --accent-foreground: 0 0% 98%;
+  /* WeMove Accent Yellow - Dark Mode */
+  --accent: 40 100% 65%;
+  --accent-foreground: 246 20% 10%;
   
-  --destructive: 0 62.8% 30.6%;
+  --destructive: 0 70% 45%;
   --destructive-foreground: 0 0% 98%;
   
   --success: 142 69% 39%;
@@ -107,12 +114,19 @@
   --info: 206 70% 43%;
   --info-foreground: 0 0% 98%;
   
-  --light: 210 10% 14%;
-  --dark: 210 10% 3%;
+  --light: 246 10% 20%;
+  --dark: 246 25% 5%;
   
-  --lightgray: 210 10% 16%;
+  --lightgray: 246 15% 15%;
   
-  --ring: 240 4.9% 83.9%;
+  --ring: 246 70% 70%;
+  
+  /* Chart colors - Dark Mode */
+  --chart-1: 246 60% 65%;
+  --chart-2: 300 55% 65%; 
+  --chart-3: 40 100% 65%;
+  --chart-4: 330 80% 65%;
+  --chart-5: 180 60% 55%;
 }
 
 /* Custom classes */
