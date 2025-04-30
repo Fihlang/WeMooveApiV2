@@ -237,44 +237,51 @@ export default function DeliveryTracking({ deliveryId }: DeliveryTrackingProps) 
   
   // Helper to get status badge
   const getStatusBadge = (status: DeliveryStatus) => {
-    const statusMap: Record<DeliveryStatus, { color: string, icon: JSX.Element }> = {
+    const statusMap: Record<DeliveryStatus, { color: string, bgColor: string, icon: JSX.Element }> = {
       'pending': { 
-        color: 'bg-gray-500', 
+        color: 'text-gray-700',
+        bgColor: 'bg-gray-100', 
         icon: <Clock className="h-3 w-3" /> 
       },
       'driver_assigned': { 
-        color: 'bg-blue-500', 
+        color: 'text-indigo-700',
+        bgColor: 'bg-indigo-100', 
         icon: <TruckIcon className="h-3 w-3" /> 
       },
       'picked_up': { 
-        color: 'bg-cyan-500', 
+        color: 'text-blue-700',
+        bgColor: 'bg-blue-100', 
         icon: <PackageOpen className="h-3 w-3" /> 
       },
       'in_transit': { 
-        color: 'bg-indigo-500', 
+        color: 'text-violet-700',
+        bgColor: 'bg-violet-100', 
         icon: <TruckIcon className="h-3 w-3" /> 
       },
       'out_for_delivery': { 
-        color: 'bg-purple-500', 
+        color: 'text-purple-700',
+        bgColor: 'bg-purple-100', 
         icon: <TruckIcon className="h-3 w-3" /> 
       },
       'delivered': { 
-        color: 'bg-green-500', 
+        color: 'text-green-700',
+        bgColor: 'bg-green-100', 
         icon: <CheckCircle className="h-3 w-3" /> 
       },
       'cancelled': { 
-        color: 'bg-red-500', 
+        color: 'text-red-700',
+        bgColor: 'bg-red-100', 
         icon: <AlertTriangle className="h-3 w-3" /> 
       }
     };
     
-    const statusInfo = statusMap[status] || { color: 'bg-gray-500', icon: <Clock className="h-3 w-3" /> };
+    const statusInfo = statusMap[status] || { color: 'text-gray-700', bgColor: 'bg-gray-100', icon: <Clock className="h-3 w-3" /> };
     const label = status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
     
     return (
-      <Badge className={`${statusInfo.color} flex items-center gap-1`}>
+      <Badge className={`${statusInfo.color} ${statusInfo.bgColor} hover:${statusInfo.bgColor} flex items-center gap-1.5 py-1.5 px-3 rounded-full border-0`}>
         {statusInfo.icon}
-        <span>{label}</span>
+        <span className="font-medium">{label}</span>
       </Badge>
     );
   };
@@ -346,57 +353,83 @@ export default function DeliveryTracking({ deliveryId }: DeliveryTrackingProps) 
           </CardDescription>
         </CardHeader>
         
-        <CardContent className="pb-2 space-y-4">
+        <CardContent className="pb-6 space-y-6">
           {/* Delivery Progress */}
-          <div className="space-y-2">
-            <div className="flex justify-between text-sm">
-              <span>Delivery Progress</span>
-              <span className="font-medium">{delivery.status === 'delivered' ? 'Completed' : 'In Progress'}</span>
+          <div className="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 rounded-xl p-4 shadow-sm border border-slate-100 dark:border-slate-800">
+            <div className="flex justify-between items-center mb-2">
+              <h4 className="font-medium">Delivery Progress</h4>
+              <Badge variant={delivery.status === 'delivered' ? 'success' : 'secondary'} className="px-2.5 py-0.5 rounded-full">
+                {delivery.status === 'delivered' ? 'Completed' : 'In Progress'}
+              </Badge>
             </div>
-            <Progress value={getProgressValue(delivery.status)} className="h-2" />
+            <Progress 
+              value={getProgressValue(delivery.status)} 
+              className="h-3 mt-2" 
+              indicatorClassName="bg-gradient-to-r from-primary to-secondary"
+            />
+            
+            <div className="flex justify-between mt-2 text-xs text-muted-foreground">
+              <span>Order Placed</span>
+              <span>Out for Delivery</span>
+              <span>Delivered</span>
+            </div>
           </div>
           
           {/* Delivery Details */}
-          <div className="grid grid-cols-1 gap-4 pt-4 border-t">
-            <div className="flex items-center">
-              <MapPin className="h-5 w-5 text-muted-foreground mr-2 flex-shrink-0" />
-              <div>
-                <p className="text-sm font-medium">Pickup Location</p>
-                <p className="text-sm text-muted-foreground">{delivery.pickupAddress}</p>
-              </div>
-            </div>
+          <div className="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 rounded-xl p-4 shadow-sm border border-slate-100 dark:border-slate-800">
+            <h4 className="font-medium mb-4">Delivery Details</h4>
             
-            <div className="flex items-center">
-              <MapPin className="h-5 w-5 text-primary mr-2 flex-shrink-0" />
-              <div>
-                <p className="text-sm font-medium">Delivery Location</p>
-                <p className="text-sm text-muted-foreground">{delivery.destinationAddress}</p>
-              </div>
-            </div>
-            
-            <div className="flex items-center">
-              <Clock className="h-5 w-5 text-muted-foreground mr-2 flex-shrink-0" />
-              <div>
-                <p className="text-sm font-medium">Scheduled Delivery Date</p>
-                <p className="text-sm text-muted-foreground">{formatDate(delivery.scheduledDate)}</p>
-              </div>
-            </div>
-            
-            {delivery.tracking && delivery.tracking.estimatedArrival && (
-              <div className="flex items-center">
-                <Clock className="h-5 w-5 text-green-500 mr-2 flex-shrink-0" />
+            <div className="grid grid-cols-1 gap-3 mt-2">
+              <div className="flex items-start bg-white dark:bg-slate-900 rounded-lg p-3 border border-slate-100 dark:border-slate-800">
+                <div className="h-8 w-8 rounded-full bg-indigo-100 dark:bg-indigo-900 flex items-center justify-center mr-3 mt-0.5">
+                  <MapPin className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
+                </div>
                 <div>
-                  <p className="text-sm font-medium">Estimated Arrival</p>
-                  <p className="text-sm text-muted-foreground">{formatDate(delivery.tracking.estimatedArrival)}</p>
+                  <p className="text-sm font-medium">Pickup Location</p>
+                  <p className="text-sm text-muted-foreground">{delivery.pickupAddress}</p>
                 </div>
               </div>
-            )}
-            
-            <div className="flex items-center">
-              <PackageOpen className="h-5 w-5 text-muted-foreground mr-2 flex-shrink-0" />
-              <div>
-                <p className="text-sm font-medium">Order Total</p>
-                <p className="text-sm text-muted-foreground">${delivery.totalPrice.toFixed(2)}</p>
+              
+              <div className="flex items-start bg-white dark:bg-slate-900 rounded-lg p-3 border border-slate-100 dark:border-slate-800">
+                <div className="h-8 w-8 rounded-full bg-purple-100 dark:bg-purple-900 flex items-center justify-center mr-3 mt-0.5">
+                  <MapPin className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium">Delivery Location</p>
+                  <p className="text-sm text-muted-foreground">{delivery.destinationAddress}</p>
+                </div>
+              </div>
+              
+              <div className="flex items-start bg-white dark:bg-slate-900 rounded-lg p-3 border border-slate-100 dark:border-slate-800">
+                <div className="h-8 w-8 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center mr-3 mt-0.5">
+                  <Clock className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium">Scheduled Delivery Date</p>
+                  <p className="text-sm text-muted-foreground">{formatDate(delivery.scheduledDate)}</p>
+                </div>
+              </div>
+              
+              {delivery.tracking && delivery.tracking.estimatedArrival && (
+                <div className="flex items-start bg-white dark:bg-slate-900 rounded-lg p-3 border border-slate-100 dark:border-slate-800">
+                  <div className="h-8 w-8 rounded-full bg-green-100 dark:bg-green-900 flex items-center justify-center mr-3 mt-0.5">
+                    <Clock className="h-4 w-4 text-green-600 dark:text-green-400" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium">Estimated Arrival</p>
+                    <p className="text-sm text-muted-foreground">{formatDate(delivery.tracking.estimatedArrival)}</p>
+                  </div>
+                </div>
+              )}
+              
+              <div className="flex items-start bg-white dark:bg-slate-900 rounded-lg p-3 border border-slate-100 dark:border-slate-800">
+                <div className="h-8 w-8 rounded-full bg-amber-100 dark:bg-amber-900 flex items-center justify-center mr-3 mt-0.5">
+                  <PackageOpen className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium">Order Total</p>
+                  <p className="text-sm font-medium text-primary">${delivery.totalPrice.toFixed(2)}</p>
+                </div>
               </div>
             </div>
           </div>
@@ -404,85 +437,133 @@ export default function DeliveryTracking({ deliveryId }: DeliveryTrackingProps) 
         
         {/* Driver Information */}
         {delivery.driver && (
-          <CardContent className="border-t pt-4">
-            <h3 className="text-lg font-semibold mb-3">Driver Information</h3>
-            <div className="flex items-center space-x-4 mb-4">
-              <Avatar className="h-12 w-12">
-                <AvatarImage src={delivery.driver.avatar} alt={delivery.driver.name} />
-                <AvatarFallback>{delivery.driver.name.slice(0, 2).toUpperCase()}</AvatarFallback>
-              </Avatar>
-              <div>
-                <p className="font-medium">{delivery.driver.name}</p>
-                <div className="flex items-center mt-1">
-                  {renderStarRating(delivery.driver.rating)}
+          <CardContent className="border-t pt-6">
+            <h3 className="text-lg font-semibold mb-4">Driver Information</h3>
+            <div className="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 rounded-xl p-4 shadow-sm border border-slate-100 dark:border-slate-800">
+              <div className="flex items-center space-x-4 mb-4">
+                <Avatar className="h-16 w-16 border-2 border-primary/20 shadow-md">
+                  <AvatarImage src={delivery.driver.avatar} alt={delivery.driver.name} />
+                  <AvatarFallback className="bg-gradient-to-br from-primary to-secondary text-white">
+                    {delivery.driver.name.slice(0, 2).toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                <div>
+                  <p className="font-semibold text-lg">{delivery.driver.name}</p>
+                  <div className="flex items-center mt-1.5">
+                    {renderStarRating(delivery.driver.rating)}
+                  </div>
                 </div>
               </div>
-            </div>
-            
-            <div className="grid grid-cols-1 gap-2">
-              <div className="flex items-center">
-                <TruckIcon className="h-4 w-4 text-muted-foreground mr-2" />
-                <span className="text-sm">{delivery.driver.vehicleType} • {delivery.driver.licensePlate}</span>
+              
+              <div className="grid grid-cols-1 gap-3 mt-4 mb-5">
+                <div className="flex items-center p-2.5 bg-white dark:bg-slate-900 rounded-lg border border-slate-100 dark:border-slate-800">
+                  <TruckIcon className="h-5 w-5 text-primary mr-3" />
+                  <div>
+                    <p className="text-xs text-muted-foreground">Vehicle</p>
+                    <p className="text-sm font-medium">{delivery.driver.vehicleType} • {delivery.driver.licensePlate}</p>
+                  </div>
+                </div>
+                
+                <div className="flex items-center p-2.5 bg-white dark:bg-slate-900 rounded-lg border border-slate-100 dark:border-slate-800">
+                  <Phone className="h-5 w-5 text-primary mr-3" />
+                  <div>
+                    <p className="text-xs text-muted-foreground">Contact</p>
+                    <p className="text-sm font-medium">{delivery.driver.phone}</p>
+                  </div>
+                </div>
               </div>
               
-              <div className="flex items-center">
-                <Phone className="h-4 w-4 text-muted-foreground mr-2" />
-                <span className="text-sm">{delivery.driver.phone}</span>
+              <div className="grid grid-cols-2 gap-3">
+                <Button 
+                  variant="outline" 
+                  className="w-full flex items-center justify-center py-5" 
+                  onClick={() => window.location.href = `tel:${delivery.driver.phone}`}
+                >
+                  <Phone className="h-4 w-4 mr-2" />
+                  Call Driver
+                </Button>
+                <Button 
+                  className="w-full flex items-center justify-center py-5 bg-gradient-to-r from-primary to-secondary hover:opacity-90" 
+                >
+                  <MessageSquare className="h-4 w-4 mr-2" />
+                  Message
+                </Button>
               </div>
-            </div>
-            
-            <div className="mt-4 space-y-2">
-              <Button variant="outline" className="w-full flex items-center" onClick={() => window.location.href = `tel:${delivery.driver.phone}`}>
-                <Phone className="h-4 w-4 mr-2" />
-                Call Driver
-              </Button>
             </div>
           </CardContent>
         )}
         
         {/* Messages */}
-        <CardContent className="border-t pt-4">
-          <h3 className="text-lg font-semibold mb-3">Messages</h3>
+        <CardContent className="border-t pt-6">
+          <h3 className="text-lg font-semibold mb-4">Messages</h3>
           
-          <div className="border rounded-lg p-3 h-64 overflow-y-auto mb-4">
-            {messages.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground">
-                <MessageSquare className="h-8 w-8 mb-2 opacity-50" />
-                <p>No messages yet. Send a message to your driver.</p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {messages.map((message) => (
-                  <div 
-                    key={message.id} 
-                    className={`flex ${message.sender === 'customer' ? 'justify-end' : 'justify-start'}`}
-                  >
-                    <div 
-                      className={`max-w-[80%] px-4 py-2 rounded-lg ${
-                        message.sender === 'customer' 
-                          ? 'bg-primary text-primary-foreground' 
-                          : 'bg-muted'
-                      }`}
-                    >
-                      <p className="text-sm">{message.text}</p>
-                      <p className="text-xs mt-1 opacity-70">{formatDate(message.timestamp)}</p>
+          <div className="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 rounded-xl p-4 shadow-sm border border-slate-100 dark:border-slate-800">
+            <div className="bg-white dark:bg-slate-900 rounded-lg p-0.5 mb-4 border border-slate-200 dark:border-slate-700">
+              <div className="h-72 overflow-y-auto p-4">
+                {messages.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground">
+                    <div className="bg-primary/10 rounded-full p-4 mb-3">
+                      <MessageSquare className="h-8 w-8 text-primary" />
                     </div>
+                    <p className="font-medium text-slate-600 dark:text-slate-300">No messages yet</p>
+                    <p className="text-sm text-muted-foreground mt-1">Send a message to your driver below</p>
                   </div>
-                ))}
+                ) : (
+                  <div className="space-y-6">
+                    {messages.map((message) => (
+                      <div 
+                        key={message.id} 
+                        className={`flex ${message.sender === 'customer' ? 'justify-end' : 'justify-start'}`}
+                      >
+                        {message.sender === 'driver' && (
+                          <Avatar className="h-8 w-8 mr-2">
+                            <AvatarFallback className="bg-gradient-to-br from-primary to-secondary text-white text-xs">
+                              {delivery.driver?.name.slice(0, 2).toUpperCase() || 'DR'}
+                            </AvatarFallback>
+                          </Avatar>
+                        )}
+                        <div 
+                          className={`max-w-[75%] px-4 py-3 rounded-2xl shadow-sm ${
+                            message.sender === 'customer' 
+                              ? 'bg-gradient-to-r from-primary to-secondary text-primary-foreground rounded-tr-none' 
+                              : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-tl-none'
+                          }`}
+                        >
+                          <p className="text-sm leading-relaxed">{message.text}</p>
+                          <p className="text-xs mt-1.5 opacity-70">{formatDate(message.timestamp)}</p>
+                        </div>
+                        {message.sender === 'customer' && (
+                          <Avatar className="h-8 w-8 ml-2">
+                            <AvatarFallback className="bg-gradient-to-br from-secondary to-primary text-white text-xs">
+                              YOU
+                            </AvatarFallback>
+                          </Avatar>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
-            )}
-          </div>
-          
-          <div className="flex space-x-2">
-            <input
-              type="text"
-              placeholder="Type a message..."
-              className="flex-1 px-3 py-2 border rounded-md"
-              value={newMessage}
-              onChange={(e) => setNewMessage(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
-            />
-            <Button onClick={sendMessage}>Send</Button>
+            </div>
+            
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Type a message..."
+                className="w-full px-4 py-3.5 pr-[120px] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-full focus:ring-primary focus:border-primary shadow-sm"
+                value={newMessage}
+                onChange={(e) => setNewMessage(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
+              />
+              <Button 
+                onClick={sendMessage} 
+                className="absolute right-1.5 top-1.5 rounded-full px-4 py-2 h-auto bg-gradient-to-r from-primary to-secondary hover:opacity-90"
+                disabled={!newMessage.trim()}
+              >
+                <MessageSquare className="h-4 w-4 mr-1.5" />
+                Send
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>
