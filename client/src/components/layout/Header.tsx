@@ -47,10 +47,12 @@ export default function Header() {
         <div className="flex items-center">
           <Link href="/">
             <a className="flex items-center">
-              <div className="rounded-full bg-primary w-10 h-10 flex items-center justify-center mr-2">
+              <div className="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-xl w-10 h-10 flex items-center justify-center mr-3 shadow-md">
                 <Truck className="text-white h-5 w-5" />
               </div>
-              <h1 className="font-heading font-bold text-xl md:text-2xl text-primary">FurnitureDelivery</h1>
+              <h1 className="font-heading font-bold text-xl md:text-2xl bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-purple-600">
+                WeMove
+              </h1>
             </a>
           </Link>
         </div>
