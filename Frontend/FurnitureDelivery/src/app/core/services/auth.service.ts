@@ -1,174 +1,200 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { BehaviorSubject, Observable, throwError } from 'rxjs';
-import { map, catchError, tap } from 'rxjs/operators';
+import { catchError, map, tap } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
 import { User } from '../../models/user.model';
 
 interface AuthResponse {
-  user: User;
   token: string;
-}
-
-interface LoginRequest {
-  email: string;
-  password: string;
+  user: User;
 }
 
 @Injectable({
   providedIn: 'root'
 })
 export class AuthService {
-  private apiUrl = `${environment.apiUrl}/auth`;
+  private apiUrl = environment.apiUrl;
+  private tokenKey = 'auth_token';
+  private userKey = 'current_user';
+  
   private currentUserSubject: BehaviorSubject<User | null>;
   public currentUser: Observable<User | null>;
-  public authStatusChange = new BehaviorSubject<boolean>(false);
-
+  
   constructor(private http: HttpClient) {
-    // Load user data from localStorage on service initialization
-    const storedData = localStorage.getItem('auth_data');
-    const userData = storedData ? JSON.parse(storedData) : null;
-    
-    this.currentUserSubject = new BehaviorSubject<User | null>(userData?.user || null);
+    // Get user from local storage if available
+    const storedUser = this.getStoredUser();
+    this.currentUserSubject = new BehaviorSubject<User | null>(storedUser);
     this.currentUser = this.currentUserSubject.asObservable();
-    
-    // Emit initial auth status
-    this.authStatusChange.next(!!userData?.user);
   }
-
+  
   /**
-   * Get the current user value without subscribing to the observable
+   * Get the current user as a behavior subject value
    */
   public get currentUserValue(): User | null {
     return this.currentUserSubject.value;
   }
-
+  
   /**
    * Check if user is authenticated
    */
   public get isAuthenticated(): boolean {
-    return !!this.currentUserValue;
+    return !!this.getAuthToken() && !!this.currentUserValue;
   }
-
+  
   /**
-   * Check if the current user is a driver
+   * Login with email and password
    */
-  public get isDriver(): boolean {
-    return this.isAuthenticated && this.currentUserValue?.userType === 'driver';
+  login(email: string, password: string): Observable<User> {
+    return this.http.post<AuthResponse>(`${this.apiUrl}/auth/login`, { email, password })
+      .pipe(
+        tap(response => this.setSession(response)),
+        map(response => response.user),
+        catchError(error => {
+          console.error('Login error:', error);
+          return throwError(() => new Error(error.error?.message || 'Login failed. Please check your credentials.'));
+        })
+      );
   }
-
+  
   /**
-   * Get the current authentication token
+   * Register a new user
    */
-  public getAuthToken(): string | null {
-    const authData = localStorage.getItem('auth_data');
-    if (authData) {
+  register(userData: any): Observable<User> {
+    return this.http.post<AuthResponse>(`${this.apiUrl}/auth/register`, userData)
+      .pipe(
+        tap(response => this.setSession(response)),
+        map(response => response.user),
+        catchError(error => {
+          console.error('Registration error:', error);
+          return throwError(() => new Error(error.error?.message || 'Registration failed. Please try again.'));
+        })
+      );
+  }
+  
+  /**
+   * Logout the current user
+   */
+  logout(): void {
+    // Remove token and user from local storage
+    localStorage.removeItem(this.tokenKey);
+    localStorage.removeItem(this.userKey);
+    // Update current user subject
+    this.currentUserSubject.next(null);
+  }
+  
+  /**
+   * Get the current auth token
+   */
+  getAuthToken(): string | null {
+    return localStorage.getItem(this.tokenKey);
+  }
+  
+  /**
+   * Update user profile
+   */
+  updateProfile(userData: Partial<User>): Observable<User> {
+    const userId = this.currentUserValue?.id;
+    if (!userId) {
+      return throwError(() => new Error('No authenticated user'));
+    }
+    
+    return this.http.patch<User>(`${this.apiUrl}/users/${userId}`, userData)
+      .pipe(
+        tap(updatedUser => {
+          // Update stored user
+          const currentUser = this.currentUserValue;
+          if (currentUser) {
+            const newUser = { ...currentUser, ...updatedUser };
+            this.storeUser(newUser);
+            this.currentUserSubject.next(newUser);
+          }
+        }),
+        catchError(error => {
+          console.error('Update profile error:', error);
+          return throwError(() => new Error(error.error?.message || 'Failed to update profile. Please try again.'));
+        })
+      );
+  }
+  
+  /**
+   * Change user password
+   */
+  changePassword(currentPassword: string, newPassword: string): Observable<any> {
+    const userId = this.currentUserValue?.id;
+    if (!userId) {
+      return throwError(() => new Error('No authenticated user'));
+    }
+    
+    return this.http.post(`${this.apiUrl}/auth/change-password`, {
+      userId,
+      currentPassword,
+      newPassword
+    }).pipe(
+      catchError(error => {
+        console.error('Change password error:', error);
+        return throwError(() => new Error(error.error?.message || 'Failed to change password. Please check your current password.'));
+      })
+    );
+  }
+  
+  /**
+   * Request password reset
+   */
+  requestPasswordReset(email: string): Observable<any> {
+    return this.http.post(`${this.apiUrl}/auth/forgot-password`, { email })
+      .pipe(
+        catchError(error => {
+          console.error('Password reset request error:', error);
+          return throwError(() => new Error(error.error?.message || 'Failed to request password reset. Please try again.'));
+        })
+      );
+  }
+  
+  /**
+   * Reset password with token
+   */
+  resetPassword(token: string, newPassword: string): Observable<any> {
+    return this.http.post(`${this.apiUrl}/auth/reset-password`, { token, newPassword })
+      .pipe(
+        catchError(error => {
+          console.error('Password reset error:', error);
+          return throwError(() => new Error(error.error?.message || 'Failed to reset password. The token may be invalid or expired.'));
+        })
+      );
+  }
+  
+  /**
+   * Store auth session data
+   */
+  private setSession(authResult: AuthResponse): void {
+    // Store token and user in local storage
+    localStorage.setItem(this.tokenKey, authResult.token);
+    this.storeUser(authResult.user);
+    // Update current user subject
+    this.currentUserSubject.next(authResult.user);
+  }
+  
+  /**
+   * Store user in local storage
+   */
+  private storeUser(user: User): void {
+    localStorage.setItem(this.userKey, JSON.stringify(user));
+  }
+  
+  /**
+   * Get stored user from local storage
+   */
+  private getStoredUser(): User | null {
+    const userJson = localStorage.getItem(this.userKey);
+    if (userJson) {
       try {
-        const { token } = JSON.parse(authData);
-        return token;
+        return JSON.parse(userJson) as User;
       } catch (e) {
+        console.error('Error parsing stored user:', e);
         return null;
       }
     }
     return null;
-  }
-
-  /**
-   * Log in a user
-   * @param loginData Login credentials
-   */
-  public login(loginData: LoginRequest): Observable<User> {
-    return this.http.post<AuthResponse>(`${this.apiUrl}/login`, loginData)
-      .pipe(
-        tap(response => this.handleAuthResponse(response)),
-        map(response => response.user),
-        catchError(error => {
-          console.error('Login error:', error);
-          return throwError(() => error);
-        })
-      );
-  }
-
-  /**
-   * Register a new user
-   * @param userData User registration data
-   */
-  public register(userData: any): Observable<User> {
-    return this.http.post<AuthResponse>(`${this.apiUrl}/register`, userData)
-      .pipe(
-        map(response => response.user),
-        catchError(error => {
-          console.error('Registration error:', error);
-          return throwError(() => error);
-        })
-      );
-  }
-
-  /**
-   * Log out the current user
-   */
-  public logout(): void {
-    // Remove user from local storage
-    localStorage.removeItem('auth_data');
-    
-    // Clear user from BehaviorSubject
-    this.currentUserSubject.next(null);
-    
-    // Emit auth status change
-    this.authStatusChange.next(false);
-  }
-
-  /**
-   * Update user profile
-   * @param userData Updated user data
-   */
-  public updateProfile(userData: Partial<User>): Observable<User> {
-    const userId = this.currentUserValue?.id;
-    
-    if (!userId) {
-      return throwError(() => new Error('User not authenticated'));
-    }
-    
-    return this.http.put<User>(`${environment.apiUrl}/users/${userId}`, userData)
-      .pipe(
-        tap(updatedUser => {
-          // Update local storage with new user data
-          const authData = localStorage.getItem('auth_data');
-          if (authData) {
-            try {
-              const data = JSON.parse(authData);
-              data.user = updatedUser;
-              localStorage.setItem('auth_data', JSON.stringify(data));
-              
-              // Update the behavior subject
-              this.currentUserSubject.next(updatedUser);
-            } catch (e) {
-              console.error('Error updating user data in storage:', e);
-            }
-          }
-        }),
-        catchError(error => {
-          console.error('Profile update error:', error);
-          return throwError(() => error);
-        })
-      );
-  }
-
-  /**
-   * Process and save authentication response
-   * @param response Authentication response from the API
-   */
-  private handleAuthResponse(response: AuthResponse): void {
-    // Store auth data in localStorage
-    localStorage.setItem('auth_data', JSON.stringify({
-      user: response.user,
-      token: response.token
-    }));
-    
-    // Update the behavior subject
-    this.currentUserSubject.next(response.user);
-    
-    // Emit auth status change
-    this.authStatusChange.next(true);
   }
 }

@@ -7,3 +7,9 @@ export interface Furniture {
   category: string;
   imageUrl: string | null;
 }
+
+export interface FurnitureCategory {
+  id: string;
+  name: string;
+  description: string | null;
+}

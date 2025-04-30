@@ -1,9 +1,10 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
-import { WebSocketServer, WebSocket } from "ws";
+import { WebSocket } from "ws";
 import { storage } from "./storage";
 import { furnitureStorage } from "./furniture-storage";
 import { z } from "zod";
+import { WebSocketService } from "./websocket";
 import { 
   insertAchievementSchema, 
   insertPuzzleSchema, 

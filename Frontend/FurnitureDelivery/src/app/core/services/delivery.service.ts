@@ -1,224 +1,148 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, throwError } from 'rxjs';
-import { catchError, map } from 'rxjs/operators';
+import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
-import { Delivery, DeliveryWithItems } from '../../models/delivery.model';
+import { Delivery } from '../../models/delivery.model';
 import { DeliveryItem } from '../../models/delivery-item.model';
-import { AuthService } from './auth.service';
+import { Driver, DriverWithDetails } from '../../models/driver.model';
+import { Furniture } from '../../models/furniture.model';
 
 @Injectable({
   providedIn: 'root'
 })
 export class DeliveryService {
-  private apiUrl = `${environment.apiUrl}/deliveries`;
-
-  constructor(
-    private http: HttpClient,
-    private authService: AuthService
-  ) {}
-
+  private apiUrl = environment.apiUrl;
+  
+  constructor(private http: HttpClient) { }
+  
+  // Delivery operations
+  
   /**
-   * Get all deliveries for the current user based on their role
+   * Get all deliveries for the currently logged-in customer
    */
-  public getMyDeliveries(): Observable<Delivery[]> {
-    const userId = this.authService.currentUserValue?.id;
-    
-    if (!userId) {
-      return throwError(() => new Error('User not authenticated'));
-    }
-    
-    // Endpoint varies based on user type
-    const endpoint = this.authService.isDriver 
-      ? `${this.apiUrl}/driver/${userId}` 
-      : `${this.apiUrl}/customer/${userId}`;
-    
-    return this.http.get<Delivery[]>(endpoint)
-      .pipe(
-        catchError(error => {
-          console.error('Error fetching deliveries:', error);
-          return throwError(() => error);
-        })
-      );
+  getMyDeliveries(): Observable<Delivery[]> {
+    return this.http.get<Delivery[]>(`${this.apiUrl}/deliveries/my`);
   }
-
+  
   /**
-   * Get active deliveries for the current driver
+   * Get a specific delivery by ID
    */
-  public getActiveDeliveries(): Observable<Delivery[]> {
-    if (!this.authService.isDriver) {
-      return throwError(() => new Error('Only drivers can access active deliveries'));
-    }
-    
-    const userId = this.authService.currentUserValue?.id;
-    
-    if (!userId) {
-      return throwError(() => new Error('User not authenticated'));
-    }
-    
-    return this.http.get<Delivery[]>(`${this.apiUrl}/driver/${userId}/active`)
-      .pipe(
-        catchError(error => {
-          console.error('Error fetching active deliveries:', error);
-          return throwError(() => error);
-        })
-      );
+  getDelivery(id: number): Observable<Delivery> {
+    return this.http.get<Delivery>(`${this.apiUrl}/deliveries/${id}`);
   }
-
+  
   /**
-   * Get a specific delivery with its items
-   * @param deliveryId ID of the delivery to retrieve
+   * Get a delivery with its items
    */
-  public getDelivery(deliveryId: number): Observable<DeliveryWithItems> {
-    return this.http.get<DeliveryWithItems>(`${this.apiUrl}/${deliveryId}`)
-      .pipe(
-        catchError(error => {
-          console.error(`Error fetching delivery ${deliveryId}:`, error);
-          return throwError(() => error);
-        })
-      );
+  getDeliveryWithItems(id: number): Observable<{delivery: Delivery, items: DeliveryItem[]}> {
+    return this.http.get<{delivery: Delivery, items: DeliveryItem[]}>(`${this.apiUrl}/deliveries/${id}/with-items`);
   }
-
+  
   /**
    * Create a new delivery
-   * @param deliveryData Delivery data
    */
-  public createDelivery(deliveryData: any): Observable<Delivery> {
-    const userId = this.authService.currentUserValue?.id;
-    
-    if (!userId) {
-      return throwError(() => new Error('User not authenticated'));
-    }
-    
-    // Ensure customer ID is set
-    const data = {
-      ...deliveryData,
-      customerId: userId
-    };
-    
-    return this.http.post<Delivery>(this.apiUrl, data)
-      .pipe(
-        catchError(error => {
-          console.error('Error creating delivery:', error);
-          return throwError(() => error);
-        })
-      );
+  createDelivery(deliveryData: any): Observable<Delivery> {
+    return this.http.post<Delivery>(`${this.apiUrl}/deliveries`, deliveryData);
   }
-
+  
   /**
-   * Update the status of a delivery
-   * @param deliveryId ID of the delivery to update
-   * @param status New status value
+   * Update a delivery status
    */
-  public updateDeliveryStatus(deliveryId: number, status: string): Observable<Delivery> {
-    return this.http.patch<Delivery>(`${this.apiUrl}/${deliveryId}/status`, { status })
-      .pipe(
-        catchError(error => {
-          console.error(`Error updating delivery ${deliveryId} status:`, error);
-          return throwError(() => error);
-        })
-      );
+  updateDeliveryStatus(id: number, status: string): Observable<Delivery> {
+    return this.http.patch<Delivery>(`${this.apiUrl}/deliveries/${id}/status`, { status });
   }
-
+  
+  // Driver operations
+  
   /**
-   * Assign a driver to a delivery
-   * @param deliveryId ID of the delivery
-   * @param driverId ID of the driver to assign
+   * Get available drivers near a location
    */
-  public assignDriver(deliveryId: number, driverId: number): Observable<Delivery> {
-    return this.http.patch<Delivery>(`${this.apiUrl}/${deliveryId}/assign`, { driverId })
-      .pipe(
-        catchError(error => {
-          console.error(`Error assigning driver to delivery ${deliveryId}:`, error);
-          return throwError(() => error);
-        })
-      );
-  }
-
-  /**
-   * Update driver location for an active delivery
-   * @param deliveryId ID of the delivery
-   * @param latitude Current latitude
-   * @param longitude Current longitude
-   */
-  public updateDriverLocation(deliveryId: number, latitude: number, longitude: number): Observable<Delivery> {
-    if (!this.authService.isDriver) {
-      return throwError(() => new Error('Only drivers can update location'));
-    }
-    
-    return this.http.patch<Delivery>(`${this.apiUrl}/${deliveryId}/location`, { 
-      latitude, 
-      longitude 
-    }).pipe(
-      catchError(error => {
-        console.error(`Error updating location for delivery ${deliveryId}:`, error);
-        return throwError(() => error);
-      })
+  getAvailableDrivers(latitude: number, longitude: number, radius: number = 10): Observable<DriverWithDetails[]> {
+    return this.http.get<DriverWithDetails[]>(
+      `${this.apiUrl}/drivers/nearby?latitude=${latitude}&longitude=${longitude}&radius=${radius}`
     );
   }
-
+  
   /**
-   * Add items to a delivery
-   * @param deliveryId ID of the delivery
-   * @param items Array of delivery items to add
+   * Get a specific driver's details
    */
-  public addDeliveryItems(deliveryId: number, items: Partial<DeliveryItem>[]): Observable<DeliveryItem[]> {
-    return this.http.post<DeliveryItem[]>(`${this.apiUrl}/${deliveryId}/items`, { items })
-      .pipe(
-        catchError(error => {
-          console.error(`Error adding items to delivery ${deliveryId}:`, error);
-          return throwError(() => error);
-        })
-      );
+  getDriverDetails(driverId: number): Observable<Driver> {
+    return this.http.get<Driver>(`${this.apiUrl}/drivers/${driverId}`);
   }
-
+  
+  // Furniture operations
+  
   /**
-   * Remove an item from a delivery
-   * @param deliveryId ID of the delivery
-   * @param itemId ID of the item to remove
+   * Get all furniture items
    */
-  public removeDeliveryItem(deliveryId: number, itemId: number): Observable<void> {
-    return this.http.delete<void>(`${this.apiUrl}/${deliveryId}/items/${itemId}`)
-      .pipe(
-        catchError(error => {
-          console.error(`Error removing item ${itemId} from delivery ${deliveryId}:`, error);
-          return throwError(() => error);
-        })
-      );
+  getAllFurniture(): Observable<Furniture[]> {
+    return this.http.get<Furniture[]>(`${this.apiUrl}/furniture`);
   }
-
+  
   /**
-   * Calculate delivery price based on items, distance, etc.
-   * @param deliveryData Delivery calculation data
+   * Get furniture by category
    */
-  public calculateDeliveryPrice(deliveryData: any): Observable<{ totalPrice: number }> {
-    return this.http.post<{ totalPrice: number }>(`${this.apiUrl}/calculate-price`, deliveryData)
-      .pipe(
-        catchError(error => {
-          console.error('Error calculating delivery price:', error);
-          return throwError(() => error);
-        })
-      );
+  getFurnitureByCategory(category: string): Observable<Furniture[]> {
+    return this.http.get<Furniture[]>(`${this.apiUrl}/furniture/category/${category}`);
   }
-
+  
+  // Review operations
+  
   /**
-   * Find nearby drivers for pickup
-   * @param latitude Pickup latitude
-   * @param longitude Pickup longitude
-   * @param radius Search radius in kilometers
+   * Submit a review for a completed delivery
    */
-  public findNearbyDrivers(latitude: number, longitude: number, radius: number = 10): Observable<any[]> {
-    return this.http.get<any[]>(`${environment.apiUrl}/drivers/nearby`, {
-      params: {
-        latitude: latitude.toString(),
-        longitude: longitude.toString(),
-        radius: radius.toString()
-      }
-    }).pipe(
-      catchError(error => {
-        console.error('Error finding nearby drivers:', error);
-        return throwError(() => error);
-      })
-    );
+  submitReview(deliveryId: number, driverId: number, rating: number, comment?: string): Observable<any> {
+    return this.http.post(`${this.apiUrl}/reviews`, {
+      deliveryId,
+      driverId,
+      rating,
+      comment
+    });
+  }
+  
+  /**
+   * Get driver reviews
+   */
+  getDriverReviews(driverId: number): Observable<any[]> {
+    return this.http.get<any[]>(`${this.apiUrl}/reviews/driver/${driverId}`);
+  }
+  
+  // Chat/Message operations
+  
+  /**
+   * Get chat messages for a delivery
+   */
+  getChatMessages(deliveryId: number): Observable<any[]> {
+    return this.http.get<any[]>(`${this.apiUrl}/messages/delivery/${deliveryId}`);
+  }
+  
+  /**
+   * Send a chat message
+   */
+  sendChatMessage(deliveryId: number, content: string): Observable<any> {
+    return this.http.post(`${this.apiUrl}/messages`, {
+      deliveryId,
+      content
+    });
+  }
+  
+  // Payment operations
+  
+  /**
+   * Process payment for a delivery
+   */
+  processPayment(deliveryId: number, paymentMethod: string, paymentDetails: any): Observable<any> {
+    return this.http.post(`${this.apiUrl}/payments`, {
+      deliveryId,
+      paymentMethod,
+      ...paymentDetails
+    });
+  }
+  
+  /**
+   * Get payment details for a delivery
+   */
+  getPaymentDetails(deliveryId: number): Observable<any> {
+    return this.http.get(`${this.apiUrl}/payments/delivery/${deliveryId}`);
   }
 }

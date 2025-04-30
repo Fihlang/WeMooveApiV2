@@ -6,5 +6,8 @@ export interface DeliveryItem {
   furnitureId: number;
   quantity: number;
   specialHandling: boolean;
-  furniture?: Furniture;
+}
+
+export interface DeliveryItemWithDetails extends DeliveryItem {
+  furniture: Furniture;
 }

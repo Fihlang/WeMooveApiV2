@@ -1,37 +1,23 @@
-import { DeliveryItem } from './delivery-item.model';
-import { DriverWithDetails } from './user.model';
-
 export interface Delivery {
   id: number;
   customerId: number;
   driverId: number | null;
   status: string;
   scheduledDate: Date;
+  pickupAddress: string;
+  destinationAddress: string;
+  totalPrice: number;
+  distance: number | null;
+  instructions: string | null;
   createdAt: Date;
   updatedAt: Date;
-  totalPrice: number;
-  pickupAddress: string;
-  pickupLatitude: number | null;
-  pickupLongitude: number | null;
-  destinationAddress: string;
-  destinationLatitude: number | null;
-  destinationLongitude: number | null;
-  paymentStatus: string;
-  specialInstructions: string | null;
-  distance: number | null;
+  estimatedArrival: Date | null;
+  actualPickupTime: Date | null;
+  actualDeliveryTime: Date | null;
 }
 
 export interface DeliveryWithItems extends Delivery {
-  items: DeliveryItem[];
-  driver?: DriverWithDetails;
-}
-
-export interface DeliveryTracking {
-  id: number;
-  deliveryId: number;
-  driverId: number;
-  timestamp: Date;
-  latitude: number;
-  longitude: number;
-  status: string;
+  items: any[];
+  driver?: any;
+  customer?: any;
 }
