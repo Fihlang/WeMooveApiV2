@@ -516,151 +516,135 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   const httpServer = createServer(app);
   
-  // Set up WebSocket server on a distinct path
-  const wss = new WebSocketServer({ server: httpServer, path: '/ws' });
+  // Initialize WebSocket service using our dedicated WebSocketService class
+  const webSocketService = new WebSocketService(httpServer);
+  console.log('WebSocket service initialized');
   
-  // Active connections store
-  const clients = new Map<string, { 
-    userId?: number; 
-    userType?: string;
-    driverId?: number;
-    socket: WebSocket; 
-  }>();
+  // API endpoints for sending WebSocket notifications
   
-  wss.on('connection', (socket) => {
-    const clientId = Math.random().toString(36).substring(2, 15);
-    clients.set(clientId, { socket });
-    
-    console.log(`WebSocket client connected: ${clientId}`);
-    
-    // Send a welcome message
-    socket.send(JSON.stringify({ 
-      type: 'connected', 
-      message: 'Successfully connected to WebSocket server',
-      clientId 
-    }));
-    
-    // Handle messages from clients
-    socket.on('message', (message) => {
-      try {
-        const data = JSON.parse(message.toString());
-        console.log('Received message:', data);
-        
-        // Handle different message types
-        switch (data.type) {
-          case 'authenticate':
-            // Authenticate the user and associate them with this connection
-            if (data.userId) {
-              const client = clients.get(clientId);
-              if (client) {
-                client.userId = data.userId;
-                client.userType = data.userType;
-                
-                if (data.userType === 'driver' && data.driverId) {
-                  client.driverId = data.driverId;
-                }
-                
-                clients.set(clientId, client);
-                
-                socket.send(JSON.stringify({ 
-                  type: 'authenticated', 
-                  userId: data.userId,
-                  userType: data.userType
-                }));
-              }
-            }
-            break;
-            
-          case 'driver_location_update':
-            // Update driver location and broadcast to relevant clients
-            if (data.driverId && data.latitude && data.longitude) {
-              // In a real app, we'd update the database
-              // For now, just broadcast to relevant clients
-              broadcastToDelivery(data.deliveryId, {
-                type: 'driver_location_update',
-                driverId: data.driverId,
-                latitude: data.latitude,
-                longitude: data.longitude,
-                timestamp: new Date()
-              });
-            }
-            break;
-            
-          case 'delivery_status_update':
-            // Update delivery status and broadcast to relevant clients
-            if (data.deliveryId && data.status) {
-              // In a real app, we'd update the database
-              // For now, just broadcast to relevant clients
-              broadcastToDelivery(data.deliveryId, {
-                type: 'delivery_status_update',
-                deliveryId: data.deliveryId,
-                status: data.status,
-                timestamp: new Date()
-              });
-            }
-            break;
-            
-          case 'new_message':
-            // Handle a new message and broadcast to delivery participants
-            if (data.message && data.message.deliveryId) {
-              broadcastToDelivery(data.message.deliveryId, {
-                type: 'new_message',
-                message: data.message,
-                timestamp: new Date()
-              });
-            }
-            break;
-            
-          default:
-            console.log(`Unknown message type: ${data.type}`);
-        }
-      } catch (error) {
-        console.error('Error handling WebSocket message:', error);
+  // Send notification to a specific user
+  app.post("/api/notifications/send", async (req, res) => {
+    try {
+      const { userId, type, message } = req.body;
+      
+      if (!userId || !message) {
+        return res.status(400).json({ message: "userId and message are required" });
       }
-    });
-    
-    // Handle disconnection
-    socket.on('close', () => {
-      clients.delete(clientId);
-      console.log(`WebSocket client disconnected: ${clientId}`);
-    });
-    
-    // Handle errors
-    socket.on('error', (error) => {
-      console.error(`WebSocket error for client ${clientId}:`, error);
-      clients.delete(clientId);
-    });
+      
+      // Create notification in database
+      const notification = await furnitureStorage.createNotification({
+        userId,
+        type: type || 'custom',
+        message,
+        isRead: false
+      });
+      
+      // Send via WebSocket
+      webSocketService.sendToUser(userId, {
+        type: 'new_notification',
+        payload: notification
+      });
+      
+      res.status(201).json({ success: true, notification });
+    } catch (error) {
+      res.status(500).json({ message: "Error sending notification" });
+    }
   });
   
-  // Function to broadcast a message to all clients associated with a delivery
-  function broadcastToDelivery(deliveryId: number, message: any) {
-    // In a real app, we'd query the database to find the customer and driver
-    // For now, just broadcast to all authenticated clients
-    for (const [_, client] of clients) {
-      if (client.socket.readyState === WebSocket.OPEN) {
-        client.socket.send(JSON.stringify(message));
+  // Broadcast delivery status update
+  app.post("/api/deliveries/:id/broadcast", async (req, res) => {
+    try {
+      const deliveryId = parseInt(req.params.id);
+      const { type, payload } = req.body;
+      
+      if (!type) {
+        return res.status(400).json({ message: "Message type is required" });
       }
+      
+      const delivery = await furnitureStorage.getDeliveryWithItems(deliveryId);
+      
+      if (!delivery) {
+        return res.status(404).json({ message: "Delivery not found" });
+      }
+      
+      webSocketService.broadcastToDelivery(deliveryId, {
+        type: type || 'delivery_update',
+        payload: payload || delivery
+      });
+      
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ message: "Error broadcasting delivery update" });
     }
-  }
+  });
   
-  // Function to send a notification to a specific user
-  function sendToUser(userId: number, message: any) {
-    for (const [_, client] of clients) {
-      if (client.userId === userId && client.socket.readyState === WebSocket.OPEN) {
-        client.socket.send(JSON.stringify(message));
-        break;
+  // Update all drivers about new delivery request
+  app.post("/api/deliveries/:id/broadcast-to-drivers", async (req, res) => {
+    try {
+      const deliveryId = parseInt(req.params.id);
+      const delivery = await furnitureStorage.getDeliveryWithItems(deliveryId);
+      
+      if (!delivery) {
+        return res.status(404).json({ message: "Delivery not found" });
       }
+      
+      webSocketService.broadcastToDrivers({
+        type: 'new_delivery_request',
+        payload: delivery
+      });
+      
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ message: "Error broadcasting to drivers" });
     }
-  }
+  });
   
-  // Function to broadcast to all driver clients
-  function broadcastToDrivers(message: any) {
-    for (const [_, client] of clients) {
-      if (client.userType === 'driver' && client.socket.readyState === WebSocket.OPEN) {
-        client.socket.send(JSON.stringify(message));
+  // Add middleware to automatically send WebSocket notifications on delivery status changes
+  app.use((req, res, next) => {
+    // Save the original json method
+    const originalJson = res.json;
+    
+    // Override the json method
+    res.json = function(body) {
+      // Check if this is a delivery status update
+      if (req.method === 'PATCH' && 
+          req.url.includes('/api/deliveries/') && 
+          req.url.includes('/status') && 
+          res.statusCode >= 200 && 
+          res.statusCode < 300 && 
+          body && 
+          body.id) {
+        
+        const deliveryId = body.id;
+        
+        // Notify about status change via WebSocket
+        webSocketService.broadcastToDelivery(deliveryId, {
+          type: 'delivery_status_update',
+          payload: body
+        });
+        
+        // Create notification for the customer
+        if (body.customerId) {
+          furnitureStorage.createNotification({
+            userId: body.customerId,
+            type: 'delivery_status',
+            message: `Your delivery #${body.id} status has been updated to: ${body.status}`,
+            isRead: false
+          }).then(notification => {
+            webSocketService.sendToUser(body.customerId, {
+              type: 'new_notification',
+              payload: notification
+            });
+          });
+        }
       }
-    }
-  }
+      
+      // Call the original method
+      return originalJson.call(this, body);
+    };
+    
+    next();
+  });
   
   return httpServer;
 }
