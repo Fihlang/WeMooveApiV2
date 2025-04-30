@@ -1,165 +1,108 @@
 using System;
-using System.ComponentModel.DataAnnotations;
+using System.Collections.Generic;
 
 namespace FurnitureDelivery.API.DTOs
 {
-    // Driver DTOs
-    public class DriverDTO
+    public class ApiResponse<T>
     {
-        public int Id { get; set; }
-        public int UserId { get; set; }
-        public UserDTO User { get; set; }
-        public string VehicleType { get; set; }
-        public string LicensePlate { get; set; }
-        public string Capacity { get; set; }
-        public bool IsAvailable { get; set; }
-        public double? CurrentLatitude { get; set; }
-        public double? CurrentLongitude { get; set; }
-        public double? Rating { get; set; }
-        public string VerificationStatus { get; set; }
+        public bool Success { get; set; }
+        public string Message { get; set; }
+        public T Data { get; set; }
+        public List<string> Errors { get; set; } = new List<string>();
+        
+        public ApiResponse() { }
+        
+        public ApiResponse(bool success, string message = null, T data = default, List<string> errors = null)
+        {
+            Success = success;
+            Message = message;
+            Data = data;
+            Errors = errors ?? new List<string>();
+        }
+        
+        public static ApiResponse<T> SuccessResponse(T data, string message = "Operation successful")
+        {
+            return new ApiResponse<T>
+            {
+                Success = true,
+                Message = message,
+                Data = data
+            };
+        }
+        
+        public static ApiResponse<T> ErrorResponse(string message, List<string> errors = null)
+        {
+            return new ApiResponse<T>
+            {
+                Success = false,
+                Message = message,
+                Errors = errors ?? new List<string>()
+            };
+        }
     }
     
-    public class UpdateDriverLocationDTO
+    public class PaginatedResponse<T>
     {
-        [Required]
-        public double Latitude { get; set; }
+        public List<T> Items { get; set; }
+        public int TotalCount { get; set; }
+        public int PageIndex { get; set; }
+        public int PageSize { get; set; }
+        public int TotalPages => (int)Math.Ceiling(TotalCount / (double)PageSize);
+        public bool HasPreviousPage => PageIndex > 1;
+        public bool HasNextPage => PageIndex < TotalPages;
+    }
+    
+    public class PaginationParams
+    {
+        private const int MaxPageSize = 50;
+        private int _pageSize = 10;
         
-        [Required]
+        public int PageIndex { get; set; } = 1;
+        
+        public int PageSize
+        {
+            get => _pageSize;
+            set => _pageSize = (value > MaxPageSize) ? MaxPageSize : value;
+        }
+        
+        public string SortBy { get; set; }
+        public bool Ascending { get; set; } = true;
+    }
+    
+    public class WebSocketMessage
+    {
+        public string Type { get; set; }
+        public object Data { get; set; }
+        public DateTime Timestamp { get; set; } = DateTime.UtcNow;
+    }
+    
+    public class GeoLocation
+    {
+        public double Latitude { get; set; }
         public double Longitude { get; set; }
     }
     
-    // Furniture DTOs
-    public class FurnitureDTO
+    public class DeliveryStatusUpdate
     {
-        public int Id { get; set; }
-        public string Name { get; set; }
-        public string Description { get; set; }
-        public double Weight { get; set; }
-        public DimensionsDTO Dimensions { get; set; }
-        public string Category { get; set; }
-        public string ImageUrl { get; set; }
-    }
-    
-    public class DimensionsDTO
-    {
-        public double Length { get; set; }
-        public double Width { get; set; }
-        public double Height { get; set; }
-    }
-    
-    public class CreateFurnitureDTO
-    {
-        [Required]
-        public string Name { get; set; }
-        
-        public string Description { get; set; }
-        
-        [Required]
-        [Range(0.1, double.MaxValue)]
-        public double Weight { get; set; }
-        
-        [Required]
-        public DimensionsDTO Dimensions { get; set; }
-        
-        [Required]
-        public string Category { get; set; }
-        
-        public string ImageUrl { get; set; }
-    }
-    
-    // Message DTOs
-    public class MessageDTO
-    {
-        public int Id { get; set; }
         public int DeliveryId { get; set; }
+        public string Status { get; set; }
+        public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+    }
+    
+    public class DriverLocationUpdate
+    {
+        public int DriverId { get; set; }
+        public GeoLocation Location { get; set; }
+        public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+    }
+    
+    public class NewMessageNotification
+    {
+        public int DeliveryId { get; set; }
+        public int MessageId { get; set; }
         public int SenderId { get; set; }
         public string SenderType { get; set; }
-        public string SenderName { get; set; }
         public string Content { get; set; }
         public DateTime CreatedAt { get; set; }
-        public bool IsRead { get; set; }
-    }
-    
-    public class SendMessageDTO
-    {
-        [Required]
-        public int DeliveryId { get; set; }
-        
-        [Required]
-        public string Content { get; set; }
-    }
-    
-    // Review DTOs
-    public class ReviewDTO
-    {
-        public int Id { get; set; }
-        public int DeliveryId { get; set; }
-        public int CustomerId { get; set; }
-        public string CustomerName { get; set; }
-        public int DriverId { get; set; }
-        public string DriverName { get; set; }
-        public int Rating { get; set; }
-        public string Comment { get; set; }
-        public DateTime CreatedAt { get; set; }
-    }
-    
-    public class CreateReviewDTO
-    {
-        [Required]
-        public int DeliveryId { get; set; }
-        
-        [Required]
-        public int DriverId { get; set; }
-        
-        [Required]
-        [Range(1, 5)]
-        public int Rating { get; set; }
-        
-        public string Comment { get; set; }
-    }
-    
-    // Notification DTOs
-    public class NotificationDTO
-    {
-        public int Id { get; set; }
-        public int UserId { get; set; }
-        public string Type { get; set; }
-        public string Title { get; set; }
-        public string Message { get; set; }
-        public bool IsRead { get; set; }
-        public string RelatedEntityType { get; set; }
-        public int? RelatedEntityId { get; set; }
-        public DateTime CreatedAt { get; set; }
-    }
-    
-    // Payment DTOs
-    public class PaymentDTO
-    {
-        public int Id { get; set; }
-        public int DeliveryId { get; set; }
-        public decimal Amount { get; set; }
-        public string Status { get; set; }
-        public string PaymentMethod { get; set; }
-        public string TransactionId { get; set; }
-        public DateTime CreatedAt { get; set; }
-        public DateTime? CompletedAt { get; set; }
-    }
-    
-    public class ProcessPaymentDTO
-    {
-        [Required]
-        public int DeliveryId { get; set; }
-        
-        [Required]
-        public string PaymentMethod { get; set; }
-        
-        [Required]
-        public decimal Amount { get; set; }
-        
-        // Payment method specific fields
-        public string CardNumber { get; set; }
-        public string ExpiryDate { get; set; }
-        public string Cvv { get; set; }
-        public string BillingAddress { get; set; }
     }
 }

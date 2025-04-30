@@ -1,43 +1,40 @@
 version: '3.8'
 
 services:
-  furniture-app:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2019-latest
+    container_name: furniture_delivery_sqlserver
+    environment:
+      - ACCEPT_EULA=Y
+      - SA_PASSWORD=Strong_Password123!
+      - MSSQL_PID=Express
+    ports:
+      - "1433:1433"
+    volumes:
+      - sqlserver_data:/var/opt/mssql
+    networks:
+      - furniture_delivery_network
+    restart: unless-stopped
+
+  api:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: furniture-delivery-app
+    container_name: furniture_delivery_api
     ports:
-      - "5000:5000"  # Express server
-      - "5001:5001"  # .NET WebAPI
-    environment:
-      - NODE_ENV=production
-      - DOTNET_ENVIRONMENT=Production
-    networks:
-      - furniture-network
+      - "5000:80"
     depends_on:
-      - postgres-db
-    restart: unless-stopped
-    volumes:
-      - ./logs:/app/logs
-
-  postgres-db:
-    image: postgres:14-alpine
-    container_name: furniture-delivery-db
-    ports:
-      - "5432:5432"
+      - sqlserver
     environment:
-      - POSTGRES_USER=furnitureuser
-      - POSTGRES_PASSWORD=furniture123
-      - POSTGRES_DB=furnituredelivery
-    volumes:
-      - postgres-data:/var/lib/postgresql/data
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ConnectionStrings__DefaultConnection=Server=sqlserver;Database=FurnitureDeliveryDb;User Id=sa;Password=Strong_Password123!;TrustServerCertificate=True;
     networks:
-      - furniture-network
+      - furniture_delivery_network
     restart: unless-stopped
 
 networks:
-  furniture-network:
+  furniture_delivery_network:
     driver: bridge
 
 volumes:
-  postgres-data:
+  sqlserver_data:
