@@ -1,6 +1,6 @@
 using System;
+using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
 
 namespace FurnitureDelivery.API.Models
 {
@@ -16,6 +16,7 @@ namespace FurnitureDelivery.API.Models
         [Required]
         public string PasswordHash { get; set; }
         
+        [Required]
         public string Salt { get; set; }
         
         [Required]
@@ -25,25 +26,24 @@ namespace FurnitureDelivery.API.Models
         public string LastName { get; set; }
         
         [Required]
-        [Phone]
         public string PhoneNumber { get; set; }
         
         public string Address { get; set; }
         
         public string AvatarUrl { get; set; }
         
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-        
-        public bool IsVerified { get; set; } = false;
+        public bool IsVerified { get; set; }
         
         [Required]
-        public string UserType { get; set; } // "customer" or "driver"
+        public string UserType { get; set; } // "customer", "driver", "admin"
+        
+        [Required]
+        public DateTime CreatedAt { get; set; }
         
         // Navigation properties
+        public virtual ICollection<Delivery> CustomerDeliveries { get; set; }
         public virtual Driver Driver { get; set; }
-        
-        // Computed property (not mapped to DB)
-        [NotMapped]
-        public string FullName => $"{FirstName} {LastName}";
+        public virtual ICollection<Review> CustomerReviews { get; set; }
+        public virtual ICollection<Notification> Notifications { get; set; }
     }
 }
