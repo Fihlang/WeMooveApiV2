@@ -1,122 +1,250 @@
-import { pgTable, text, serial, integer, boolean, timestamp, json } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, json, real, uuid } from "drizzle-orm/pg-core";
+import { relations } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
-// Users table
+// User tables
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
-  username: text("username").notNull().unique(),
+  email: text("email").notNull().unique(),
+  firstName: text("first_name").notNull(),
+  lastName: text("last_name").notNull(),
   password: text("password").notNull(),
-  displayName: text("display_name").notNull(),
+  phoneNumber: text("phone_number").notNull(),
+  address: text("address"),
   avatarUrl: text("avatar_url"),
-  currentJourneyId: integer("current_journey_id"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  isVerified: boolean("is_verified").default(false).notNull(),
+  userType: text("user_type").default("customer").notNull(), // customer, driver, admin
+});
+
+export const drivers = pgTable("drivers", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  vehicleType: text("vehicle_type").notNull(),
+  licensePlate: text("license_plate").notNull(),
+  capacity: text("capacity").notNull(), // Small, Medium, Large
+  isAvailable: boolean("is_available").default(true).notNull(),
+  currentLatitude: real("current_latitude"),
+  currentLongitude: real("current_longitude"),
+  rating: real("rating").default(0),
+  verificationStatus: text("verification_status").default("pending").notNull(), // pending, approved, rejected
+  documents: json("documents"), // URLs to license, insurance, etc.
+});
+
+// Furniture and Delivery tables
+export const furniture = pgTable("furniture", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  description: text("description"),
+  weight: real("weight").notNull(), // in kg
+  dimensions: json("dimensions").notNull(), // { length, width, height } in cm
+  category: text("category").notNull(), // sofa, table, chair, etc.
+  imageUrl: text("image_url"),
+});
+
+export const deliveries = pgTable("deliveries", {
+  id: serial("id").primaryKey(),
+  customerId: integer("customer_id").references(() => users.id).notNull(),
+  driverId: integer("driver_id").references(() => drivers.id),
+  status: text("status").default("pending").notNull(), // pending, assigned, in_progress, delivered, cancelled
+  pickupAddress: text("pickup_address").notNull(),
+  pickupLatitude: real("pickup_latitude"),
+  pickupLongitude: real("pickup_longitude"),
+  destinationAddress: text("destination_address").notNull(),
+  destinationLatitude: real("destination_latitude"),
+  destinationLongitude: real("destination_longitude"),
+  scheduledDate: timestamp("scheduled_date").notNull(),
+  completedDate: timestamp("completed_date"),
+  specialInstructions: text("special_instructions"),
+  totalPrice: real("total_price").notNull(),
+  distance: real("distance"), // in km
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const deliveryItems = pgTable("delivery_items", {
+  id: serial("id").primaryKey(),
+  deliveryId: integer("delivery_id").references(() => deliveries.id).notNull(),
+  furnitureId: integer("furniture_id").references(() => furniture.id).notNull(),
+  quantity: integer("quantity").default(1).notNull(),
+  specialHandling: boolean("special_handling").default(false).notNull(),
+});
+
+// Reviews and Payments
+export const reviews = pgTable("reviews", {
+  id: serial("id").primaryKey(),
+  deliveryId: integer("delivery_id").references(() => deliveries.id).notNull(), 
+  customerId: integer("customer_id").references(() => users.id).notNull(),
+  driverId: integer("driver_id").references(() => drivers.id).notNull(),
+  rating: integer("rating").notNull(), // 1-5
+  comment: text("comment"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-// Regions table
-export const regions = pgTable("regions", {
+export const payments = pgTable("payments", {
   id: serial("id").primaryKey(),
-  name: text("name").notNull(),
-  description: text("description").notNull(),
-  isLocked: boolean("is_locked").default(false).notNull(),
-  mapPosition: json("map_position").notNull(), // { top: string, left: string }
-  color: text("color").notNull(), // Primary, secondary, accent, info, etc.
+  deliveryId: integer("delivery_id").references(() => deliveries.id).notNull(),
+  amount: real("amount").notNull(),
+  status: text("status").default("pending").notNull(), // pending, completed, failed
+  paymentMethod: text("payment_method").notNull(), // credit_card, paypal, etc.
+  transactionId: text("transaction_id"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-// Puzzles table
-export const puzzles = pgTable("puzzles", {
+// Chat and Notifications
+export const messages = pgTable("messages", {
   id: serial("id").primaryKey(),
+  deliveryId: integer("delivery_id").references(() => deliveries.id).notNull(),
+  senderId: integer("sender_id").references(() => users.id).notNull(),
+  content: text("content").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  isRead: boolean("is_read").default(false).notNull(),
+});
+
+export const notifications = pgTable("notifications", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id).notNull(),
   title: text("title").notNull(),
-  description: text("description").notNull(),
-  regionId: integer("region_id").notNull(),
-  difficulty: text("difficulty").notNull(), // Easy, Medium, Hard
-  type: text("type").notNull(), // Culture, Language, Tradition, etc.
-  content: json("content").notNull(), // Puzzle-specific content (varies by puzzle type)
-  imageUrl: text("image_url"),
-  isNew: boolean("is_new").default(false),
-  achievementCount: integer("achievement_count").default(0),
+  message: text("message").notNull(),
+  type: text("type").notNull(), // delivery_status, chat_message, payment, etc.
+  referenceId: integer("reference_id"), // ID of related entity (delivery, payment, etc.)
+  isRead: boolean("is_read").default(false).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-// Achievements table
-export const achievements = pgTable("achievements", {
-  id: serial("id").primaryKey(),
-  title: text("title").notNull(),
-  description: text("description").notNull(),
-  icon: text("icon").notNull(), // Font Awesome icon class
-  backgroundColor: text("background_color").notNull(), // Primary, secondary, etc.
-  isLocked: boolean("is_locked").default(true).notNull(),
-  points: integer("points").default(100).notNull(),
-});
+// Relations
+export const usersRelations = relations(users, ({ many }) => ({
+  deliveries: many(deliveries, { relationName: "customerDeliveries" }),
+  reviews: many(reviews, { relationName: "customerReviews" }),
+  drivers: many(drivers),
+  messages: many(messages, { relationName: "userMessages" }),
+  notifications: many(notifications),
+}));
 
-// User Achievements (junction table)
-export const userAchievements = pgTable("user_achievements", {
-  id: serial("id").primaryKey(),
-  userId: integer("user_id").notNull(),
-  achievementId: integer("achievement_id").notNull(),
-  unlockedAt: timestamp("unlocked_at").defaultNow().notNull(),
-});
+export const driversRelations = relations(drivers, ({ one, many }) => ({
+  user: one(users, {
+    fields: [drivers.userId],
+    references: [users.id],
+  }),
+  deliveries: many(deliveries),
+  reviews: many(reviews, { relationName: "driverReviews" }),
+}));
 
-// User Puzzles Progress (junction table)
-export const userPuzzles = pgTable("user_puzzles", {
-  id: serial("id").primaryKey(),
-  userId: integer("user_id").notNull(),
-  puzzleId: integer("puzzle_id").notNull(),
-  completed: boolean("completed").default(false),
-  progress: integer("progress").default(0), // 0-100
-  lastPlayedAt: timestamp("last_played_at"),
-});
+export const deliveriesRelations = relations(deliveries, ({ one, many }) => ({
+  customer: one(users, {
+    fields: [deliveries.customerId],
+    references: [users.id],
+  }),
+  driver: one(drivers, {
+    fields: [deliveries.driverId],
+    references: [drivers.id],
+  }),
+  items: many(deliveryItems),
+  reviews: many(reviews),
+  payments: many(payments),
+  messages: many(messages),
+}));
 
-// User Region Progress (junction table)
-export const userRegions = pgTable("user_regions", {
-  id: serial("id").primaryKey(),
-  userId: integer("user_id").notNull(),
-  regionId: integer("region_id").notNull(),
-  completionPercentage: integer("completion_percentage").default(0),
-  unlockedAt: timestamp("unlocked_at").defaultNow(),
-});
+export const deliveryItemsRelations = relations(deliveryItems, ({ one }) => ({
+  delivery: one(deliveries, {
+    fields: [deliveryItems.deliveryId],
+    references: [deliveries.id],
+  }),
+  furniture: one(furniture, {
+    fields: [deliveryItems.furnitureId],
+    references: [furniture.id],
+  }),
+}));
 
-// Insert schemas
+export const reviewsRelations = relations(reviews, ({ one }) => ({
+  delivery: one(deliveries, {
+    fields: [reviews.deliveryId],
+    references: [deliveries.id],
+  }),
+  customer: one(users, {
+    fields: [reviews.customerId],
+    references: [users.id],
+  }),
+  driver: one(drivers, {
+    fields: [reviews.driverId],
+    references: [drivers.id],
+  }),
+}));
+
+export const paymentsRelations = relations(payments, ({ one }) => ({
+  delivery: one(deliveries, {
+    fields: [payments.deliveryId],
+    references: [deliveries.id],
+  }),
+}));
+
+export const messagesRelations = relations(messages, ({ one }) => ({
+  delivery: one(deliveries, {
+    fields: [messages.deliveryId],
+    references: [deliveries.id],
+  }),
+  sender: one(users, {
+    fields: [messages.senderId],
+    references: [users.id],
+  }),
+}));
+
+export const notificationsRelations = relations(notifications, ({ one }) => ({
+  user: one(users, {
+    fields: [notifications.userId],
+    references: [users.id],
+  }),
+}));
+
+// Insert Schemas
 export const insertUserSchema = createInsertSchema(users).omit({ id: true, createdAt: true });
-export const insertRegionSchema = createInsertSchema(regions).omit({ id: true });
-export const insertPuzzleSchema = createInsertSchema(puzzles).omit({ id: true });
-export const insertAchievementSchema = createInsertSchema(achievements).omit({ id: true });
-export const insertUserAchievementSchema = createInsertSchema(userAchievements).omit({ id: true, unlockedAt: true });
-export const insertUserPuzzleSchema = createInsertSchema(userPuzzles).omit({ id: true, lastPlayedAt: true });
-export const insertUserRegionSchema = createInsertSchema(userRegions).omit({ id: true, unlockedAt: true });
+export const insertDriverSchema = createInsertSchema(drivers).omit({ id: true });
+export const insertFurnitureSchema = createInsertSchema(furniture).omit({ id: true });
+export const insertDeliverySchema = createInsertSchema(deliveries).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertDeliveryItemSchema = createInsertSchema(deliveryItems).omit({ id: true });
+export const insertReviewSchema = createInsertSchema(reviews).omit({ id: true, createdAt: true });
+export const insertPaymentSchema = createInsertSchema(payments).omit({ id: true, createdAt: true });
+export const insertMessageSchema = createInsertSchema(messages).omit({ id: true, createdAt: true });
+export const insertNotificationSchema = createInsertSchema(notifications).omit({ id: true, createdAt: true });
 
-// Types
+// Export types
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
 
-export type Region = typeof regions.$inferSelect;
-export type InsertRegion = z.infer<typeof insertRegionSchema>;
+export type Driver = typeof drivers.$inferSelect;
+export type InsertDriver = z.infer<typeof insertDriverSchema>;
 
-export type Puzzle = typeof puzzles.$inferSelect;
-export type InsertPuzzle = z.infer<typeof insertPuzzleSchema>;
+export type Furniture = typeof furniture.$inferSelect;
+export type InsertFurniture = z.infer<typeof insertFurnitureSchema>;
 
-export type Achievement = typeof achievements.$inferSelect;
-export type InsertAchievement = z.infer<typeof insertAchievementSchema>;
+export type Delivery = typeof deliveries.$inferSelect;
+export type InsertDelivery = z.infer<typeof insertDeliverySchema>;
 
-export type UserAchievement = typeof userAchievements.$inferSelect;
-export type InsertUserAchievement = z.infer<typeof insertUserAchievementSchema>;
+export type DeliveryItem = typeof deliveryItems.$inferSelect;
+export type InsertDeliveryItem = z.infer<typeof insertDeliveryItemSchema>;
 
-export type UserPuzzle = typeof userPuzzles.$inferSelect;
-export type InsertUserPuzzle = z.infer<typeof insertUserPuzzleSchema>;
+export type Review = typeof reviews.$inferSelect;
+export type InsertReview = z.infer<typeof insertReviewSchema>;
 
-export type UserRegion = typeof userRegions.$inferSelect;
-export type InsertUserRegion = z.infer<typeof insertUserRegionSchema>;
+export type Payment = typeof payments.$inferSelect;
+export type InsertPayment = z.infer<typeof insertPaymentSchema>;
 
-// Extended types for detailed information
-export type RegionWithProgress = Region & {
-  completionPercentage: number;
-  isActive: boolean;
+export type Message = typeof messages.$inferSelect;
+export type InsertMessage = z.infer<typeof insertMessageSchema>;
+
+export type Notification = typeof notifications.$inferSelect;
+export type InsertNotification = z.infer<typeof insertNotificationSchema>;
+
+// Domain-specific types
+export type DeliveryWithItems = Delivery & {
+  items: (DeliveryItem & { furniture: Furniture })[];
+  customer: User;
+  driver?: Driver & { user: User };
 };
 
-export type PuzzleWithProgress = Puzzle & {
-  progress: number;
-  completed: boolean;
-};
-
-export type AchievementWithStatus = Achievement & {
-  unlockedAt?: Date;
+export type DriverWithDetails = Driver & {
+  user: User;
+  reviewCount: number;
+  averageRating: number;
 };

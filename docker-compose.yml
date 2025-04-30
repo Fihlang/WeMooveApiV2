@@ -1,0 +1,43 @@
+version: '3.8'
+
+services:
+  furniture-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: furniture-delivery-app
+    ports:
+      - "5000:5000"  # Express server
+      - "5001:5001"  # .NET WebAPI
+    environment:
+      - NODE_ENV=production
+      - DOTNET_ENVIRONMENT=Production
+    networks:
+      - furniture-network
+    depends_on:
+      - postgres-db
+    restart: unless-stopped
+    volumes:
+      - ./logs:/app/logs
+
+  postgres-db:
+    image: postgres:14-alpine
+    container_name: furniture-delivery-db
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=furnitureuser
+      - POSTGRES_PASSWORD=furniture123
+      - POSTGRES_DB=furnituredelivery
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - furniture-network
+    restart: unless-stopped
+
+networks:
+  furniture-network:
+    driver: bridge
+
+volumes:
+  postgres-data:

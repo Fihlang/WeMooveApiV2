@@ -1,21 +1,24 @@
-import { 
-  Achievement, 
-  AchievementWithStatus, 
-  InsertAchievement, 
-  InsertPuzzle, 
-  InsertRegion, 
-  InsertUser, 
-  InsertUserAchievement, 
-  InsertUserPuzzle, 
-  InsertUserRegion, 
-  Puzzle, 
-  PuzzleWithProgress,
-  Region, 
-  RegionWithProgress, 
-  User, 
-  UserAchievement,
-  UserPuzzle,
-  UserRegion
+import {
+  User,
+  InsertUser,
+  Driver,
+  InsertDriver,
+  Furniture,
+  InsertFurniture,
+  Delivery,
+  InsertDelivery,
+  DeliveryItem,
+  InsertDeliveryItem,
+  Review,
+  InsertReview,
+  Payment,
+  InsertPayment,
+  Message,
+  InsertMessage,
+  Notification,
+  InsertNotification,
+  DeliveryWithItems,
+  DriverWithDetails
 } from "@shared/schema";
 
 // Interface for all storage operations
