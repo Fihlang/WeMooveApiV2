@@ -2,35 +2,30 @@ import { Injectable } from '@angular/core';
 import { HttpRequest, HttpHandler, HttpEvent, HttpInterceptor } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { AuthService } from '../services/auth.service';
+import { environment } from '../../../environments/environment';
 
 @Injectable()
 export class AuthInterceptor implements HttpInterceptor {
+  
   constructor(private authService: AuthService) {}
-
-  intercept(request: HttpRequest<any>, next: HttpHandler): Observable<HttpEvent<any>> {
-    // Skip adding authentication for login or registration requests
-    if (request.url.includes('/auth/login') || 
-        request.url.includes('/auth/register')) {
-      return next.handle(request);
+  
+  intercept(request: HttpRequest<unknown>, next: HttpHandler): Observable<HttpEvent<unknown>> {
+    // Get the auth token
+    const token = this.authService.getAuthToken();
+    
+    // Only add the token to API requests
+    const isApiUrl = request.url.startsWith(environment.apiUrl);
+    
+    if (token && isApiUrl) {
+      // Clone the request and add the token to the Authorization header
+      request = request.clone({
+        setHeaders: {
+          Authorization: `Bearer ${token}`
+        }
+      });
     }
     
-    // Get auth data from local storage
-    const authData = localStorage.getItem('auth_data');
-    if (authData) {
-      try {
-        const { token } = JSON.parse(authData);
-        
-        // Clone the request and add the Authorization header
-        request = request.clone({
-          setHeaders: {
-            Authorization: `Bearer ${token}`
-          }
-        });
-      } catch (error) {
-        console.error('Error parsing auth data', error);
-      }
-    }
-
+    // Pass the modified request on to the next handler
     return next.handle(request);
   }
 }

@@ -1,109 +1,115 @@
-import { Component, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { RouterModule } from '@angular/router';
-import { MatCardModule } from '@angular/material/card';
-import { MatButtonModule } from '@angular/material/button';
-import { MatIconModule } from '@angular/material/icon';
-import { MatDividerModule } from '@angular/material/divider';
-import { MatTabsModule } from '@angular/material/tabs';
-import { MatProgressBarModule } from '@angular/material/progress-bar';
-import { MatBadgeModule } from '@angular/material/badge';
-import { HttpService } from '../../core/services/http.service';
-import { AuthService, User } from '../../core/services/auth.service';
+import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Router } from '@angular/router';
+import { Subscription } from 'rxjs';
 
-interface DeliverySummary {
-  id: number;
-  status: string;
-  createdAt: Date;
-  scheduledDate: Date;
-  pickupAddress: string;
-  destinationAddress: string;
-  totalPrice: number;
-  driverName?: string;
-}
+import { DeliveryService } from '../../core/services/delivery.service';
+import { WebSocketService } from '../../core/services/websocket.service';
+import { AuthService } from '../../core/services/auth.service';
+import { Delivery } from '../../models/delivery.model';
+import { User } from '../../models/user.model';
 
 @Component({
   selector: 'app-customer-dashboard',
   templateUrl: './dashboard.component.html',
-  styleUrls: ['./dashboard.component.scss'],
-  standalone: true,
-  imports: [
-    CommonModule,
-    RouterModule,
-    MatCardModule,
-    MatButtonModule,
-    MatIconModule,
-    MatDividerModule,
-    MatTabsModule,
-    MatProgressBarModule,
-    MatBadgeModule
-  ]
+  styleUrls: ['./dashboard.component.css']
 })
-export class CustomerDashboardComponent implements OnInit {
+export class DashboardComponent implements OnInit, OnDestroy {
   currentUser: User | null = null;
-  recentDeliveries: DeliverySummary[] = [];
-  activeDeliveries: DeliverySummary[] = [];
-  pendingActions: number = 0;
+  deliveries: Delivery[] = [];
+  loading = true;
+  error: string | null = null;
   
-  deliveryStatusMap: { [key: string]: { icon: string, color: string } } = {
-    'pending': { icon: 'schedule', color: '#FFA000' },
-    'confirmed': { icon: 'check_circle', color: '#2196F3' },
-    'in_transit': { icon: 'local_shipping', color: '#4CAF50' },
-    'delivered': { icon: 'done_all', color: '#4CAF50' },
-    'cancelled': { icon: 'cancel', color: '#F44336' }
+  statusColors: { [key: string]: string } = {
+    'pending': 'warning',
+    'accepted': 'info',
+    'picked_up': 'info',
+    'in_transit': 'primary',
+    'delivered': 'success',
+    'cancelled': 'danger'
   };
+  
+  private subscriptions: Subscription[] = [];
 
   constructor(
-    private httpService: HttpService,
-    private authService: AuthService
+    private deliveryService: DeliveryService,
+    private authService: AuthService,
+    private websocketService: WebSocketService,
+    private router: Router
   ) { }
 
   ngOnInit(): void {
-    this.currentUser = this.authService.getCurrentUser();
-    this.loadActiveDeliveries();
-    this.loadRecentDeliveries();
+    // Get current user
+    this.currentUser = this.authService.currentUserValue;
+    
+    // Load deliveries
+    this.loadDeliveries();
+    
+    // Subscribe to delivery update notifications through WebSocket
+    this.subscriptions.push(
+      this.websocketService.getMessagesByType('delivery_update').subscribe(payload => {
+        this.handleDeliveryUpdate(payload);
+      })
+    );
+    
+    // Ensure WebSocket connection is established
+    if (!this.websocketService.isConnected()) {
+      this.websocketService.connect();
+    }
   }
 
-  loadActiveDeliveries(): void {
-    if (!this.currentUser) return;
+  ngOnDestroy(): void {
+    // Clean up subscriptions
+    this.subscriptions.forEach(sub => sub.unsubscribe());
+  }
+
+  loadDeliveries(): void {
+    this.loading = true;
+    this.error = null;
     
-    this.httpService.get<DeliverySummary[]>(`customers/${this.currentUser.id}/deliveries/active`)
-      .subscribe({
+    this.subscriptions.push(
+      this.deliveryService.getMyDeliveries().subscribe({
         next: (deliveries) => {
-          this.activeDeliveries = deliveries;
-          
-          // Count deliveries that need customer action
-          this.pendingActions = deliveries.filter(d => 
-            d.status === 'pending_payment' || 
-            d.status === 'pending_review' || 
-            d.status === 'awaiting_confirmation'
-          ).length;
+          this.deliveries = deliveries;
+          this.loading = false;
         },
         error: (error) => {
-          console.error('Error loading active deliveries:', error);
+          console.error('Error fetching deliveries:', error);
+          this.error = 'Failed to load your deliveries. Please try again.';
+          this.loading = false;
         }
-      });
+      })
+    );
   }
 
-  loadRecentDeliveries(): void {
-    if (!this.currentUser) return;
+  trackDelivery(deliveryId: number): void {
+    this.router.navigate(['/customer/track', deliveryId]);
+  }
+
+  placeNewOrder(): void {
+    this.router.navigate(['/customer/place-order']);
+  }
+
+  browseCatalog(): void {
+    this.router.navigate(['/customer/catalog']);
+  }
+
+  getStatusClass(status: string): string {
+    return this.statusColors[status] || 'secondary';
+  }
+
+  private handleDeliveryUpdate(payload: any): void {
+    // Find and update the delivery in the list
+    const index = this.deliveries.findIndex(d => d.id === payload.deliveryId);
     
-    this.httpService.get<DeliverySummary[]>(`customers/${this.currentUser.id}/deliveries/recent`)
-      .subscribe({
-        next: (deliveries) => {
-          this.recentDeliveries = deliveries;
-        },
-        error: (error) => {
-          console.error('Error loading recent deliveries:', error);
-        }
-      });
-  }
-
-  getStatusInfo(status: string): { icon: string, color: string } {
-    return this.deliveryStatusMap[status] || { icon: 'help', color: '#757575' };
-  }
-
-  formatAddress(address: string): string {
-    return address.length > 30 ? address.substring(0, 27) + '...' : address;
+    if (index !== -1) {
+      // Update the delivery with the new data
+      this.deliveries[index] = {
+        ...this.deliveries[index],
+        ...payload.delivery
+      };
+    } else if (payload.customerId === this.currentUser?.id) {
+      // If it's a new delivery for this customer, add it to the list
+      this.deliveries.push(payload.delivery);
+    }
   }
 }
