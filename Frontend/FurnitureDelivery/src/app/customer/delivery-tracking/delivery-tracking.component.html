@@ -1,0 +1,162 @@
+<div class="tracking-container">
+  <div *ngIf="loading" class="loading-state">
+    <mat-progress-bar mode="indeterminate"></mat-progress-bar>
+    <p>Loading delivery details...</p>
+  </div>
+  
+  <div *ngIf="error" class="error-state">
+    <mat-icon color="warn">error</mat-icon>
+    <p>{{ error }}</p>
+    <button mat-raised-button color="primary" (click)="loadDeliveryDetails()">Retry</button>
+  </div>
+  
+  <div *ngIf="delivery && !loading && !error" class="delivery-tracking">
+    <div class="tracking-header">
+      <h1>Tracking Delivery #{{ delivery.id }}</h1>
+      <div class="delivery-status">
+        <mat-icon>{{ getStatusIcon(delivery.status) }}</mat-icon>
+        <span>{{ delivery.status | titlecase }}</span>
+      </div>
+    </div>
+    
+    <div class="delivery-progress-bar">
+      <div class="progress-container">
+        <div class="progress-bar">
+          <div class="progress-fill" [style.width.%]="getStatusCompletionPercentage()"></div>
+        </div>
+        <div class="progress-status">{{ getStatusCompletionPercentage().toFixed(0) }}% completed</div>
+      </div>
+    </div>
+    
+    <div class="tracking-content">
+      <div class="map-section">
+        <mat-card>
+          <mat-card-header>
+            <mat-card-title>Live Tracking</mat-card-title>
+          </mat-card-header>
+          <mat-card-content>
+            <div class="map-container">
+              <div #mapContainer class="map"></div>
+            </div>
+          </mat-card-content>
+        </mat-card>
+      </div>
+      
+      <div class="info-section">
+        <mat-card class="delivery-info-card">
+          <mat-card-header>
+            <mat-card-title>Delivery Details</mat-card-title>
+          </mat-card-header>
+          <mat-card-content>
+            <div class="info-grid">
+              <div class="info-row">
+                <div class="info-label">Scheduled Date:</div>
+                <div class="info-value">{{ formatDate(delivery.scheduledDate) }}</div>
+              </div>
+              
+              <div class="info-row">
+                <div class="info-label">From:</div>
+                <div class="info-value">{{ delivery.pickupAddress }}</div>
+              </div>
+              
+              <div class="info-row">
+                <div class="info-label">To:</div>
+                <div class="info-value">{{ delivery.destinationAddress }}</div>
+              </div>
+              
+              <div class="info-row" *ngIf="delivery.estimatedArrival">
+                <div class="info-label">ETA:</div>
+                <div class="info-value">{{ formatDate(delivery.estimatedArrival) }}</div>
+              </div>
+              
+              <div class="info-row">
+                <div class="info-label">Total:</div>
+                <div class="info-value price">${{ delivery.totalPrice.toFixed(2) }}</div>
+              </div>
+            </div>
+          </mat-card-content>
+        </mat-card>
+        
+        <div *ngIf="delivery.driverId" class="driver-card-container">
+          <mat-card class="driver-info-card">
+            <mat-card-header>
+              <mat-card-title>Driver Information</mat-card-title>
+            </mat-card-header>
+            <mat-card-content>
+              <div class="driver-info">
+                <div class="driver-avatar">
+                  <mat-icon class="avatar-icon">account_circle</mat-icon>
+                </div>
+                <div class="driver-details">
+                  <div class="driver-name">{{ delivery.driverName || 'Assigned Driver' }}</div>
+                  <div class="driver-rating" *ngIf="delivery.driverRating">
+                    <mat-icon class="star-icon">star</mat-icon>
+                    <span>{{ delivery.driverRating.toFixed(1) }}</span>
+                  </div>
+                </div>
+              </div>
+              
+              <div class="driver-actions">
+                <button mat-raised-button color="primary" (click)="openChat()">
+                  <mat-icon>chat</mat-icon>
+                  <span>Chat</span>
+                </button>
+                <button mat-raised-button color="accent" (click)="callDriver()" *ngIf="delivery.driverPhone">
+                  <mat-icon>phone</mat-icon>
+                  <span>Call</span>
+                </button>
+              </div>
+            </mat-card-content>
+          </mat-card>
+        </div>
+        
+        <mat-card class="delivery-items-card">
+          <mat-card-header>
+            <mat-card-title>Items ({{ delivery.items.length }})</mat-card-title>
+          </mat-card-header>
+          <mat-card-content>
+            <div class="items-list">
+              <div *ngFor="let item of delivery.items" class="item-row">
+                <div class="item-name">
+                  <span>{{ item.name }}</span>
+                  <mat-icon *ngIf="item.specialHandling" matTooltip="Special Handling Required" class="special-icon">
+                    warning
+                  </mat-icon>
+                </div>
+                <div class="item-quantity">x{{ item.quantity }}</div>
+              </div>
+              
+              <div *ngIf="delivery.items.length === 0" class="empty-items">
+                No items in this delivery
+              </div>
+            </div>
+          </mat-card-content>
+        </mat-card>
+      </div>
+    </div>
+    
+    <mat-card class="status-updates-card">
+      <mat-card-header>
+        <mat-card-title>Delivery Timeline</mat-card-title>
+      </mat-card-header>
+      <mat-card-content>
+        <div class="status-timeline">
+          <div *ngFor="let update of delivery.statusUpdates" class="timeline-item">
+            <div class="timeline-icon">
+              <mat-icon>{{ getStatusIcon(update.status) }}</mat-icon>
+            </div>
+            <div class="timeline-content">
+              <div class="timeline-title">{{ update.status | titlecase }}</div>
+              <div class="timeline-date">{{ formatDate(update.timestamp) }}</div>
+              <div *ngIf="update.note" class="timeline-note">{{ update.note }}</div>
+            </div>
+          </div>
+          
+          <div *ngIf="delivery.statusUpdates.length === 0" class="empty-timeline">
+            No status updates available
+          </div>
+        </div>
+      </mat-card-content>
+    </mat-card>
+  </div>
+</div>

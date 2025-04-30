@@ -1,0 +1,360 @@
+.tracking-container {
+  padding: 24px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.loading-state, .error-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 300px;
+  
+  p {
+    margin: 16px 0;
+    font-size: 16px;
+    color: #666;
+  }
+  
+  mat-icon {
+    font-size: 48px;
+    height: 48px;
+    width: 48px;
+    margin-bottom: 16px;
+  }
+}
+
+.tracking-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  
+  h1 {
+    font-size: 24px;
+    margin: 0;
+    font-weight: 500;
+  }
+  
+  .delivery-status {
+    display: flex;
+    align-items: center;
+    background-color: #f5f5f5;
+    padding: 8px 16px;
+    border-radius: 24px;
+    
+    mat-icon {
+      margin-right: 8px;
+      color: #3f51b5;
+    }
+    
+    span {
+      font-weight: 500;
+    }
+  }
+  
+  @media (max-width: 600px) {
+    flex-direction: column;
+    align-items: flex-start;
+    
+    h1 {
+      margin-bottom: 12px;
+    }
+  }
+}
+
+.delivery-progress-bar {
+  margin-bottom: 24px;
+  
+  .progress-container {
+    background-color: #f5f5f5;
+    border-radius: 8px;
+    padding: 16px;
+    
+    .progress-bar {
+      height: 8px;
+      background-color: #e0e0e0;
+      border-radius: 4px;
+      overflow: hidden;
+      margin-bottom: 8px;
+      
+      .progress-fill {
+        height: 100%;
+        background-color: #4caf50;
+        border-radius: 4px;
+      }
+    }
+    
+    .progress-status {
+      text-align: right;
+      font-size: 14px;
+      color: #666;
+    }
+  }
+}
+
+.tracking-content {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  margin-bottom: 24px;
+  
+  @media (max-width: 960px) {
+    grid-template-columns: 1fr;
+  }
+  
+  .map-section {
+    .map-container {
+      height: 400px;
+      width: 100%;
+      position: relative;
+      overflow: hidden;
+      border-radius: 4px;
+      
+      .map {
+        height: 100%;
+        width: 100%;
+      }
+    }
+  }
+  
+  .info-section {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    
+    .delivery-info-card, .driver-info-card, .delivery-items-card {
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      
+      mat-card-header {
+        background-color: #f5f5f5;
+        padding: 12px 16px;
+        
+        mat-card-title {
+          margin: 0;
+          font-size: 16px;
+        }
+      }
+      
+      mat-card-content {
+        padding: 16px;
+      }
+    }
+    
+    .info-grid {
+      display: grid;
+      gap: 12px;
+      
+      .info-row {
+        display: grid;
+        grid-template-columns: 120px 1fr;
+        align-items: flex-start;
+        
+        .info-label {
+          font-weight: 500;
+          color: #666;
+        }
+        
+        .info-value {
+          &.price {
+            font-weight: 700;
+            color: #3f51b5;
+          }
+        }
+      }
+    }
+    
+    .driver-info {
+      display: flex;
+      align-items: center;
+      margin-bottom: 16px;
+      
+      .driver-avatar {
+        width: 48px;
+        height: 48px;
+        background-color: #f5f5f5;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 16px;
+        
+        .avatar-icon {
+          font-size: 32px;
+          height: 32px;
+          width: 32px;
+          color: #757575;
+        }
+      }
+      
+      .driver-details {
+        .driver-name {
+          font-weight: 500;
+          margin-bottom: 4px;
+        }
+        
+        .driver-rating {
+          display: flex;
+          align-items: center;
+          
+          .star-icon {
+            color: #ffc107;
+            font-size: 16px;
+            height: 16px;
+            width: 16px;
+            margin-right: 4px;
+          }
+        }
+      }
+    }
+    
+    .driver-actions {
+      display: flex;
+      gap: 12px;
+      
+      button {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        
+        mat-icon {
+          margin-right: 8px;
+        }
+      }
+    }
+    
+    .items-list {
+      .item-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 8px 0;
+        border-bottom: 1px solid #f0f0f0;
+        
+        &:last-child {
+          border-bottom: none;
+        }
+        
+        .item-name {
+          display: flex;
+          align-items: center;
+          
+          .special-icon {
+            margin-left: 8px;
+            color: #ff9800;
+            font-size: 16px;
+            height: 16px;
+            width: 16px;
+          }
+        }
+        
+        .item-quantity {
+          font-weight: 500;
+          color: #666;
+        }
+      }
+      
+      .empty-items {
+        text-align: center;
+        padding: 16px;
+        color: #757575;
+      }
+    }
+  }
+}
+
+.status-updates-card {
+  margin-bottom: 24px;
+  border-radius: 8px;
+  
+  mat-card-header {
+    background-color: #f5f5f5;
+    padding: 12px 16px;
+    
+    mat-card-title {
+      margin: 0;
+      font-size: 16px;
+    }
+  }
+  
+  .status-timeline {
+    padding: 16px 0;
+    
+    .timeline-item {
+      display: flex;
+      position: relative;
+      margin-bottom: 24px;
+      
+      &:last-child {
+        margin-bottom: 0;
+        
+        &:after {
+          display: none;
+        }
+      }
+      
+      &:after {
+        content: '';
+        position: absolute;
+        left: 15px;
+        top: 30px;
+        bottom: -24px;
+        width: 2px;
+        background-color: #e0e0e0;
+      }
+      
+      .timeline-icon {
+        position: relative;
+        z-index: 1;
+        width: 32px;
+        height: 32px;
+        background-color: #3f51b5;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 16px;
+        flex-shrink: 0;
+        
+        mat-icon {
+          color: white;
+          font-size: 16px;
+          height: 16px;
+          width: 16px;
+        }
+      }
+      
+      .timeline-content {
+        flex: 1;
+        
+        .timeline-title {
+          font-weight: 500;
+          margin-bottom: 4px;
+        }
+        
+        .timeline-date {
+          font-size: 12px;
+          color: #757575;
+          margin-bottom: 8px;
+        }
+        
+        .timeline-note {
+          background-color: #f5f5f5;
+          padding: 8px 12px;
+          border-radius: 4px;
+          font-size: 14px;
+        }
+      }
+    }
+    
+    .empty-timeline {
+      text-align: center;
+      padding: 24px;
+      color: #757575;
+    }
+  }
+}
