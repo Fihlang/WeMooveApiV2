@@ -1,106 +1,202 @@
 import { Injectable } from '@angular/core';
-import { HttpService } from './http.service';
-import { WebSocketService } from './websocket.service';
-import { Observable, tap } from 'rxjs';
+import { HttpClient } from '@angular/common/http';
+import { Observable } from 'rxjs';
+import { map, catchError } from 'rxjs/operators';
+import { environment } from '../../../environments/environment';
 import { 
   Delivery, 
-  DeliveryWithItems, 
+  DeliveryItem, 
   CreateDeliveryRequest, 
-  DeliveryItem 
-} from '../models/delivery.model';
+  UpdateDeliveryStatusRequest, 
+  AssignDriverRequest, 
+  Review, 
+  CreateReviewRequest 
+} from '../../models/delivery.model';
 
 @Injectable({
   providedIn: 'root'
 })
 export class DeliveryService {
-  constructor(
-    private httpService: HttpService,
-    private wsService: WebSocketService
-  ) {}
+  constructor(private http: HttpClient) { }
 
-  /**
-   * Get a delivery by ID
-   * @param deliveryId Delivery ID
-   * @param detailed Whether to include detailed information
-   */
-  getDelivery(deliveryId: number, detailed: boolean = false): Observable<Delivery | DeliveryWithItems> {
-    return this.httpService.get<Delivery | DeliveryWithItems>(
-      `deliveries/${deliveryId}`, 
-      { detailed: detailed.toString() }
-    );
-  }
-
-  /**
-   * Get all deliveries for a customer
-   * @param customerId Customer ID
-   */
+  // Customer delivery operations
   getCustomerDeliveries(customerId: number): Observable<Delivery[]> {
-    return this.httpService.get<Delivery[]>(`customers/${customerId}/deliveries`);
+    return this.http.get<any>(`${environment.apiUrl}/deliveries/customer/${customerId}`)
+      .pipe(
+        map(response => {
+          if (response && response.data) {
+            return response.data;
+          }
+          return [];
+        }),
+        catchError(error => {
+          console.error('Get customer deliveries error', error);
+          throw new Error(error.error?.message || 'Failed to get customer deliveries');
+        })
+      );
   }
 
-  /**
-   * Get all deliveries for a driver
-   * @param driverId Driver ID
-   * @param activeOnly Whether to return only active deliveries
-   */
-  getDriverDeliveries(driverId: number, activeOnly: boolean = false): Observable<Delivery[]> {
-    return this.httpService.get<Delivery[]>(
-      `drivers/${driverId}/deliveries`,
-      { active: activeOnly.toString() }
-    );
+  createDelivery(request: CreateDeliveryRequest): Observable<Delivery> {
+    return this.http.post<any>(`${environment.apiUrl}/deliveries`, request)
+      .pipe(
+        map(response => {
+          if (response && response.data) {
+            return response.data;
+          }
+          throw new Error('Invalid response format');
+        }),
+        catchError(error => {
+          console.error('Create delivery error', error);
+          throw new Error(error.error?.message || 'Failed to create delivery');
+        })
+      );
   }
 
-  /**
-   * Create a new delivery
-   * @param delivery Delivery data
-   */
-  createDelivery(delivery: CreateDeliveryRequest): Observable<DeliveryWithItems> {
-    return this.httpService.post<DeliveryWithItems>('deliveries', delivery);
+  // Driver delivery operations
+  getDriverDeliveries(driverId: number): Observable<Delivery[]> {
+    return this.http.get<any>(`${environment.apiUrl}/deliveries/driver/${driverId}`)
+      .pipe(
+        map(response => {
+          if (response && response.data) {
+            return response.data;
+          }
+          return [];
+        }),
+        catchError(error => {
+          console.error('Get driver deliveries error', error);
+          throw new Error(error.error?.message || 'Failed to get driver deliveries');
+        })
+      );
   }
 
-  /**
-   * Update a delivery's status
-   * @param deliveryId Delivery ID
-   * @param status New status
-   */
-  updateDeliveryStatus(deliveryId: number, status: string): Observable<Delivery> {
-    return this.httpService.put<Delivery>(`deliveries/${deliveryId}/status`, { status }).pipe(
-      tap(delivery => {
-        // Send WebSocket update
-        this.wsService.sendDeliveryStatusUpdate(deliveryId, status);
-      })
-    );
+  getActiveDriverDeliveries(driverId: number): Observable<Delivery[]> {
+    return this.http.get<any>(`${environment.apiUrl}/deliveries/driver/${driverId}/active`)
+      .pipe(
+        map(response => {
+          if (response && response.data) {
+            return response.data;
+          }
+          return [];
+        }),
+        catchError(error => {
+          console.error('Get active driver deliveries error', error);
+          throw new Error(error.error?.message || 'Failed to get active driver deliveries');
+        })
+      );
   }
 
-  /**
-   * Assign a driver to a delivery
-   * @param deliveryId Delivery ID
-   * @param driverId Driver ID
-   */
-  assignDriverToDelivery(deliveryId: number, driverId: number): Observable<Delivery> {
-    return this.httpService.put<Delivery>(`deliveries/${deliveryId}/assign`, { driverId });
+  // General delivery operations
+  getDelivery(id: number): Observable<Delivery> {
+    return this.http.get<any>(`${environment.apiUrl}/deliveries/${id}`)
+      .pipe(
+        map(response => {
+          if (response && response.data) {
+            return response.data;
+          }
+          throw new Error('Invalid response format');
+        }),
+        catchError(error => {
+          console.error(`Get delivery ${id} error`, error);
+          throw new Error(error.error?.message || 'Failed to get delivery');
+        })
+      );
   }
 
-  /**
-   * Get items for a specific delivery
-   * @param deliveryId Delivery ID
-   */
+  updateDeliveryStatus(id: number, request: UpdateDeliveryStatusRequest): Observable<Delivery> {
+    return this.http.put<any>(`${environment.apiUrl}/deliveries/${id}/status`, request)
+      .pipe(
+        map(response => {
+          if (response && response.data) {
+            return response.data;
+          }
+          throw new Error('Invalid response format');
+        }),
+        catchError(error => {
+          console.error(`Update delivery ${id} status error`, error);
+          throw new Error(error.error?.message || 'Failed to update delivery status');
+        })
+      );
+  }
+
+  assignDriverToDelivery(deliveryId: number, request: AssignDriverRequest): Observable<Delivery> {
+    return this.http.put<any>(`${environment.apiUrl}/deliveries/${deliveryId}/assign`, request)
+      .pipe(
+        map(response => {
+          if (response && response.data) {
+            return response.data;
+          }
+          throw new Error('Invalid response format');
+        }),
+        catchError(error => {
+          console.error(`Assign driver to delivery ${deliveryId} error`, error);
+          throw new Error(error.error?.message || 'Failed to assign driver to delivery');
+        })
+      );
+  }
+
+  // Item operations
   getDeliveryItems(deliveryId: number): Observable<DeliveryItem[]> {
-    return this.httpService.get<DeliveryItem[]>(`deliveries/${deliveryId}/items`);
+    return this.http.get<any>(`${environment.apiUrl}/deliveries/${deliveryId}/items`)
+      .pipe(
+        map(response => {
+          if (response && response.data) {
+            return response.data;
+          }
+          return [];
+        }),
+        catchError(error => {
+          console.error(`Get delivery ${deliveryId} items error`, error);
+          throw new Error(error.error?.message || 'Failed to get delivery items');
+        })
+      );
   }
 
-  /**
-   * Add an item to a delivery
-   * @param item Delivery item data
-   */
-  addDeliveryItem(item: Partial<DeliveryItem>): Observable<DeliveryItem> {
-    return this.httpService.post<DeliveryItem>('delivery-items', item);
+  // Review operations
+  getDriverReviews(driverId: number): Observable<Review[]> {
+    return this.http.get<any>(`${environment.apiUrl}/reviews/driver/${driverId}`)
+      .pipe(
+        map(response => {
+          if (response && response.data) {
+            return response.data;
+          }
+          return [];
+        }),
+        catchError(error => {
+          console.error(`Get driver ${driverId} reviews error`, error);
+          throw new Error(error.error?.message || 'Failed to get driver reviews');
+        })
+      );
   }
 
-  /**
-   * Subscribe to delivery status updates
-   */
-  getDeliveryStatusUpdates(): Observable<{ deliveryId: number, status: string }> {
-    return this.wsService.getDeliveryStatusUpdates();
+  getDriverAverageRating(driverId: number): Observable<number> {
+    return this.http.get<any>(`${environment.apiUrl}/reviews/driver/${driverId}/rating`)
+      .pipe(
+        map(response => {
+          if (response && response.data !== undefined) {
+            return response.data;
+          }
+          return 0;
+        }),
+        catchError(error => {
+          console.error(`Get driver ${driverId} average rating error`, error);
+          throw new Error(error.error?.message || 'Failed to get driver average rating');
+        })
+      );
+  }
+
+  createReview(request: CreateReviewRequest): Observable<Review> {
+    return this.http.post<any>(`${environment.apiUrl}/reviews`, request)
+      .pipe(
+        map(response => {
+          if (response && response.data) {
+            return response.data;
+          }
+          throw new Error('Invalid response format');
+        }),
+        catchError(error => {
+          console.error('Create review error', error);
+          throw new Error(error.error?.message || 'Failed to create review');
+        })
+      );
   }
 }
