@@ -16,19 +16,18 @@ namespace FurnitureDelivery.API.Models
         public int SenderId { get; set; }
         
         [Required]
-        public string SenderType { get; set; } // "customer", "driver", "system"
+        public string SenderType { get; set; } // "customer", "driver", "admin", "system"
         
         [Required]
         public string Content { get; set; }
         
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        [Required]
+        public DateTime CreatedAt { get; set; }
         
-        public bool IsRead { get; set; } = false;
+        public bool IsRead { get; set; }
         
         // Navigation properties
         [ForeignKey("DeliveryId")]
         public virtual Delivery Delivery { get; set; }
-        
-        // No direct navigation to User since it could be customer or driver
     }
 }

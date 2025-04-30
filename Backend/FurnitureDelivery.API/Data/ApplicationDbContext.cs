@@ -27,177 +27,163 @@ namespace FurnitureDelivery.API.Data
 
             // Configure relationships and constraints
             
-            // User
+            // User entity
             modelBuilder.Entity<User>()
                 .HasIndex(u => u.Email)
                 .IsUnique();
-                
-            // Driver
+            
+            // Driver entity
             modelBuilder.Entity<Driver>()
                 .HasOne(d => d.User)
                 .WithOne(u => u.Driver)
                 .HasForeignKey<Driver>(d => d.UserId)
                 .OnDelete(DeleteBehavior.Restrict);
-                
-            // Delivery
+            
+            modelBuilder.Entity<Driver>()
+                .HasIndex(d => d.LicensePlate)
+                .IsUnique();
+            
+            // Delivery entity
             modelBuilder.Entity<Delivery>()
                 .HasOne(d => d.Customer)
-                .WithMany()
+                .WithMany(u => u.CustomerDeliveries)
                 .HasForeignKey(d => d.CustomerId)
                 .OnDelete(DeleteBehavior.Restrict);
-                
+            
             modelBuilder.Entity<Delivery>()
                 .HasOne(d => d.Driver)
                 .WithMany(d => d.Deliveries)
                 .HasForeignKey(d => d.DriverId)
                 .OnDelete(DeleteBehavior.Restrict);
-                
-            // DeliveryItem
+            
+            // DeliveryItem entity
             modelBuilder.Entity<DeliveryItem>()
                 .HasOne(di => di.Delivery)
                 .WithMany(d => d.Items)
                 .HasForeignKey(di => di.DeliveryId)
                 .OnDelete(DeleteBehavior.Cascade);
-                
+            
             modelBuilder.Entity<DeliveryItem>()
                 .HasOne(di => di.Furniture)
                 .WithMany(f => f.DeliveryItems)
                 .HasForeignKey(di => di.FurnitureId)
                 .OnDelete(DeleteBehavior.Restrict);
-                
-            // Payment
+            
+            // Payment entity
             modelBuilder.Entity<Payment>()
                 .HasOne(p => p.Delivery)
                 .WithOne(d => d.Payment)
                 .HasForeignKey<Payment>(p => p.DeliveryId)
                 .OnDelete(DeleteBehavior.Cascade);
-                
-            // Message
+            
+            // Message entity
             modelBuilder.Entity<Message>()
                 .HasOne(m => m.Delivery)
                 .WithMany(d => d.Messages)
                 .HasForeignKey(m => m.DeliveryId)
                 .OnDelete(DeleteBehavior.Cascade);
-                
-            // Review
+            
+            // Review entity
             modelBuilder.Entity<Review>()
                 .HasOne(r => r.Delivery)
                 .WithMany(d => d.Reviews)
                 .HasForeignKey(r => r.DeliveryId)
                 .OnDelete(DeleteBehavior.Cascade);
-                
+            
             modelBuilder.Entity<Review>()
                 .HasOne(r => r.Customer)
-                .WithMany()
+                .WithMany(u => u.CustomerReviews)
                 .HasForeignKey(r => r.CustomerId)
                 .OnDelete(DeleteBehavior.Restrict);
-                
+            
             modelBuilder.Entity<Review>()
                 .HasOne(r => r.Driver)
                 .WithMany(d => d.Reviews)
                 .HasForeignKey(r => r.DriverId)
                 .OnDelete(DeleteBehavior.Restrict);
-                
-            // Notification
+            
+            // Notification entity
             modelBuilder.Entity<Notification>()
                 .HasOne(n => n.User)
-                .WithMany()
+                .WithMany(u => u.Notifications)
                 .HasForeignKey(n => n.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
-                
-            // Seed data for development
+            
+            // Seed initial data
             SeedData(modelBuilder);
         }
 
         private void SeedData(ModelBuilder modelBuilder)
         {
-            // Only seed data in development environment
-            if (Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") != "Development")
-            {
-                return;
-            }
-
-            // Seed Users
+            // Seed admin user
             modelBuilder.Entity<User>().HasData(
                 new User
                 {
                     Id = 1,
-                    Email = "customer@example.com",
-                    PasswordHash = "hashed_password_placeholder", // Would be properly hashed in real app
+                    Email = "admin@furnituredelivery.com",
+                    PasswordHash = "hash_placeholder", // In real app, use a proper password hashing method
                     Salt = "salt_placeholder",
-                    FirstName = "John",
-                    LastName = "Customer",
+                    FirstName = "Admin",
+                    LastName = "User",
                     PhoneNumber = "1234567890",
-                    Address = "123 Main St, Anytown, USA",
-                    CreatedAt = DateTime.UtcNow,
+                    Address = "Admin Office, 123 Main St",
                     IsVerified = true,
-                    UserType = "customer"
-                },
-                new User
-                {
-                    Id = 2,
-                    Email = "driver@example.com",
-                    PasswordHash = "hashed_password_placeholder", // Would be properly hashed in real app
-                    Salt = "salt_placeholder",
-                    FirstName = "Dave",
-                    LastName = "Driver",
-                    PhoneNumber = "0987654321",
-                    Address = "456 Driver Rd, Anytown, USA",
-                    CreatedAt = DateTime.UtcNow,
-                    IsVerified = true,
-                    UserType = "driver"
+                    UserType = "admin",
+                    CreatedAt = DateTime.UtcNow
                 }
             );
 
-            // Seed Driver
-            modelBuilder.Entity<Driver>().HasData(
-                new Driver
-                {
-                    Id = 1,
-                    UserId = 2,
-                    VehicleType = "Truck",
-                    LicensePlate = "ABC123",
-                    Capacity = "Large",
-                    IsAvailable = true,
-                    CurrentLatitude = 34.0522,
-                    CurrentLongitude = -118.2437,
-                    Rating = 4.8,
-                    VerificationStatus = "verified",
-                    Documents = "{\"license\": \"verified\", \"insurance\": \"verified\"}"
-                }
-            );
-
-            // Seed Furniture
+            // Seed furniture categories
             modelBuilder.Entity<Furniture>().HasData(
                 new Furniture
                 {
                     Id = 1,
-                    Name = "Leather Sofa",
-                    Description = "Premium leather 3-seater sofa",
-                    Weight = 45.5,
-                    DimensionsJson = "{\"length\": 200, \"width\": 85, \"height\": 70}",
-                    Category = "Sofa",
-                    ImageUrl = "/images/furniture/leather-sofa.jpg"
+                    Name = "L-Shaped Sofa",
+                    Description = "Large comfortable L-shaped sofa for living room",
+                    Weight = 85.5,
+                    DimensionsJson = "{\"length\": 220, \"width\": 160, \"height\": 85}",
+                    Category = "sofas",
+                    ImageUrl = "/images/furniture/l-shaped-sofa.jpg"
                 },
                 new Furniture
                 {
                     Id = 2,
-                    Name = "Queen Bed Frame",
-                    Description = "Wooden queen size bed frame",
-                    Weight = 35.0,
-                    DimensionsJson = "{\"length\": 210, \"width\": 150, \"height\": 40}",
-                    Category = "Bed",
-                    ImageUrl = "/images/furniture/queen-bed.jpg"
+                    Name = "King Size Bed",
+                    Description = "Luxury king size bed with wooden frame",
+                    Weight = 75.0,
+                    DimensionsJson = "{\"length\": 200, \"width\": 180, \"height\": 120}",
+                    Category = "beds",
+                    ImageUrl = "/images/furniture/king-bed.jpg"
                 },
                 new Furniture
                 {
                     Id = 3,
-                    Name = "Dining Table",
-                    Description = "6-seater wooden dining table",
-                    Weight = 30.0,
+                    Name = "Dining Table Set",
+                    Description = "Six-seat dining table with chairs",
+                    Weight = 60.0,
                     DimensionsJson = "{\"length\": 180, \"width\": 90, \"height\": 75}",
-                    Category = "Table",
+                    Category = "tables",
                     ImageUrl = "/images/furniture/dining-table.jpg"
+                },
+                new Furniture
+                {
+                    Id = 4,
+                    Name = "Wardrobe",
+                    Description = "Large three-door wardrobe with mirror",
+                    Weight = 120.0,
+                    DimensionsJson = "{\"length\": 150, \"width\": 60, \"height\": 210}",
+                    Category = "storage",
+                    ImageUrl = "/images/furniture/wardrobe.jpg"
+                },
+                new Furniture
+                {
+                    Id = 5,
+                    Name = "Office Desk",
+                    Description = "Professional office desk with drawers",
+                    Weight = 45.0,
+                    DimensionsJson = "{\"length\": 140, \"width\": 70, \"height\": 75}",
+                    Category = "office",
+                    ImageUrl = "/images/furniture/office-desk.jpg"
                 }
             );
         }

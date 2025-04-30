@@ -13,22 +13,21 @@ namespace FurnitureDelivery.API.Models
         public int DeliveryId { get; set; }
         
         [Required]
+        [Column(TypeName = "decimal(18,2)")]
         public decimal Amount { get; set; }
         
         [Required]
-        public string Status { get; set; } = "pending"; // "pending", "completed", "failed", "refunded"
+        public string Status { get; set; } // "pending", "processing", "completed", "failed", "refunded"
         
         [Required]
-        public string PaymentMethod { get; set; } = "credit_card"; // "credit_card", "paypal", "cash"
+        public string PaymentMethod { get; set; } // "credit_card", "debit_card", "paypal", "bank_transfer", etc.
         
-        public string TransactionId { get; set; } // External payment provider transaction ID
+        public string TransactionId { get; set; }
         
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        [Required]
+        public DateTime CreatedAt { get; set; }
         
         public DateTime? CompletedAt { get; set; }
-        
-        // Additional payment details stored as JSON
-        public string PaymentDetailsJson { get; set; }
         
         // Navigation properties
         [ForeignKey("DeliveryId")]

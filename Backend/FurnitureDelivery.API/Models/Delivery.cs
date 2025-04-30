@@ -16,21 +16,25 @@ namespace FurnitureDelivery.API.Models
         public int? DriverId { get; set; }
         
         [Required]
-        public string Status { get; set; } = "pending"; // "pending", "accepted", "picked_up", "in_transit", "delivered", "completed", "cancelled"
+        public string Status { get; set; } // "pending", "accepted", "picked_up", "in_transit", "delivered", "completed", "cancelled"
         
         [Required]
         public string PickupAddress { get; set; }
         
-        public double? PickupLatitude { get; set; }
+        [Required]
+        public double PickupLatitude { get; set; }
         
-        public double? PickupLongitude { get; set; }
+        [Required]
+        public double PickupLongitude { get; set; }
         
         [Required]
         public string DestinationAddress { get; set; }
         
-        public double? DestinationLatitude { get; set; }
+        [Required]
+        public double DestinationLatitude { get; set; }
         
-        public double? DestinationLongitude { get; set; }
+        [Required]
+        public double DestinationLongitude { get; set; }
         
         [Required]
         public DateTime ScheduledDate { get; set; }
@@ -38,13 +42,16 @@ namespace FurnitureDelivery.API.Models
         public DateTime? CompletedDate { get; set; }
         
         [Required]
+        [Column(TypeName = "decimal(18,2)")]
         public decimal TotalPrice { get; set; }
         
-        public double? Distance { get; set; } // in kilometers
+        public double? Distance { get; set; }
         
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        [Required]
+        public DateTime CreatedAt { get; set; }
         
-        public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+        [Required]
+        public DateTime UpdatedAt { get; set; }
         
         // Navigation properties
         [ForeignKey("CustomerId")]
@@ -55,12 +62,10 @@ namespace FurnitureDelivery.API.Models
         
         public virtual ICollection<DeliveryItem> Items { get; set; }
         
-        public virtual ICollection<Message> Messages { get; set; }
-        
         public virtual Payment Payment { get; set; }
         
-        public virtual ICollection<Review> Reviews { get; set; }
+        public virtual ICollection<Message> Messages { get; set; }
         
-        public virtual ICollection<Notification> Notifications { get; set; }
+        public virtual ICollection<Review> Reviews { get; set; }
     }
 }

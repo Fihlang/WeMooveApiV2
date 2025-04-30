@@ -15,9 +15,9 @@ namespace FurnitureDelivery.API.Models
         public int FurnitureId { get; set; }
         
         [Required]
-        public int Quantity { get; set; } = 1;
+        public int Quantity { get; set; }
         
-        public bool SpecialHandling { get; set; } = false;
+        public bool SpecialHandling { get; set; }
         
         // Navigation properties
         [ForeignKey("DeliveryId")]

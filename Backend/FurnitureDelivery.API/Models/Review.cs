@@ -24,7 +24,8 @@ namespace FurnitureDelivery.API.Models
         
         public string Comment { get; set; }
         
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        [Required]
+        public DateTime CreatedAt { get; set; }
         
         // Navigation properties
         [ForeignKey("DeliveryId")]

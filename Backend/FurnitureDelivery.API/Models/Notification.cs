@@ -13,7 +13,7 @@ namespace FurnitureDelivery.API.Models
         public int UserId { get; set; }
         
         [Required]
-        public string Type { get; set; } // "delivery_update", "message", "payment", "review", etc.
+        public string Type { get; set; } // "delivery_created", "delivery_assigned", "driver_assigned", "delivery_status_updated", "new_message", "new_review", etc.
         
         [Required]
         public string Title { get; set; }
@@ -21,20 +21,17 @@ namespace FurnitureDelivery.API.Models
         [Required]
         public string Message { get; set; }
         
-        public bool IsRead { get; set; } = false;
+        public bool IsRead { get; set; }
         
-        public string RelatedEntityType { get; set; } // "delivery", "message", "payment", etc.
+        public string RelatedEntityType { get; set; } // "delivery", "message", "review", etc.
         
         public int? RelatedEntityId { get; set; }
         
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        [Required]
+        public DateTime CreatedAt { get; set; }
         
         // Navigation properties
         [ForeignKey("UserId")]
         public virtual User User { get; set; }
-        
-        // Optional relationship to delivery
-        [ForeignKey("RelatedEntityId")]
-        public virtual Delivery Delivery { get; set; }
     }
 }
