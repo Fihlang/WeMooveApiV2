@@ -13,9 +13,14 @@ export interface User {
   phoneNumber: string;
   address: string | null;
   avatarUrl: string | null;
-  userType: string;
+  createdAt: Date;
   isVerified: boolean;
-  driverId?: number; // Only for driver users
+  userType: string;
+}
+
+export interface AuthResponse {
+  token: string;
+  user: User;
 }
 
 export interface LoginRequest {
@@ -24,110 +29,116 @@ export interface LoginRequest {
 }
 
 export interface RegisterRequest {
-  firstName: string;
-  lastName: string;
   email: string;
   password: string;
-  userType: string;
-  phone: string;
-}
-
-export interface AuthResponse {
-  token: string;
-  user: User;
+  firstName: string;
+  lastName: string;
+  phoneNumber: string;
+  address?: string;
+  userType: 'customer' | 'driver';
 }
 
 @Injectable({
   providedIn: 'root'
 })
 export class AuthService {
-  private readonly TOKEN_KEY = 'auth_token';
-  private readonly USER_KEY = 'current_user';
-  
   private currentUserSubject = new BehaviorSubject<User | null>(null);
   public currentUser$ = this.currentUserSubject.asObservable();
   
-  private isAuthenticatedSubject = new BehaviorSubject<boolean>(false);
-  public isAuthenticated$ = this.isAuthenticatedSubject.asObservable();
-  
-  private baseUrl = environment.apiUrl;
+  private tokenSubject = new BehaviorSubject<string | null>(null);
+  public token$ = this.tokenSubject.asObservable();
 
   constructor(
     private http: HttpClient,
     private router: Router
   ) {
-    this.loadUserFromStorage();
+    this.loadStoredAuth();
   }
 
-  private loadUserFromStorage(): void {
-    const token = localStorage.getItem(this.TOKEN_KEY);
-    const userStr = localStorage.getItem(this.USER_KEY);
+  // Load user from localStorage on service initialization
+  private loadStoredAuth(): void {
+    const token = localStorage.getItem('token');
+    const user = localStorage.getItem('user');
     
-    if (token && userStr) {
+    if (token && user) {
       try {
-        const user = JSON.parse(userStr) as User;
-        this.currentUserSubject.next(user);
-        this.isAuthenticatedSubject.next(true);
+        this.tokenSubject.next(token);
+        this.currentUserSubject.next(JSON.parse(user));
       } catch (error) {
-        this.clearAuthData();
+        console.error('Error parsing stored user:', error);
+        this.logout();
       }
     }
   }
 
-  public login(credentials: LoginRequest): Observable<User> {
-    return this.http.post<AuthResponse>(`${this.baseUrl}/auth/login`, credentials)
+  // Get current user value
+  public get currentUserValue(): User | null {
+    return this.currentUserSubject.value;
+  }
+
+  // Get current token value
+  public get tokenValue(): string | null {
+    return this.tokenSubject.value;
+  }
+
+  // Check if user is authenticated
+  public get isAuthenticated(): boolean {
+    return !!this.tokenValue;
+  }
+
+  // Login method
+  login(credentials: LoginRequest): Observable<User> {
+    return this.http.post<AuthResponse>(`${environment.apiUrl}/auth/login`, credentials)
       .pipe(
         tap(response => this.handleAuthResponse(response)),
         map(response => response.user),
         catchError(error => {
           console.error('Login error:', error);
-          return throwError(() => new Error(error.error?.message || 'Login failed'));
+          return throwError(() => new Error(error.error?.message || 'Login failed. Please check your credentials.'));
         })
       );
   }
 
-  public register(userData: RegisterRequest): Observable<User> {
-    return this.http.post<AuthResponse>(`${this.baseUrl}/auth/register`, userData)
+  // Register method
+  register(userData: RegisterRequest): Observable<User> {
+    return this.http.post<AuthResponse>(`${environment.apiUrl}/auth/register`, userData)
       .pipe(
         tap(response => this.handleAuthResponse(response)),
         map(response => response.user),
         catchError(error => {
           console.error('Registration error:', error);
-          return throwError(() => new Error(error.error?.message || 'Registration failed'));
+          return throwError(() => new Error(error.error?.message || 'Registration failed. Please try again.'));
         })
       );
   }
 
-  public logout(): void {
-    this.clearAuthData();
-    this.router.navigate(['/login']);
-  }
-
-  public isLoggedIn(): boolean {
-    return this.isAuthenticatedSubject.value;
-  }
-
-  public getCurrentUser(): User | null {
-    return this.currentUserSubject.value;
-  }
-
-  public getToken(): string | null {
-    return localStorage.getItem(this.TOKEN_KEY);
-  }
-
-  private handleAuthResponse(response: AuthResponse): void {
-    localStorage.setItem(this.TOKEN_KEY, response.token);
-    localStorage.setItem(this.USER_KEY, JSON.stringify(response.user));
-    
-    this.currentUserSubject.next(response.user);
-    this.isAuthenticatedSubject.next(true);
-  }
-
-  private clearAuthData(): void {
-    localStorage.removeItem(this.TOKEN_KEY);
-    localStorage.removeItem(this.USER_KEY);
-    
+  // Logout method
+  logout(): void {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    this.tokenSubject.next(null);
     this.currentUserSubject.next(null);
-    this.isAuthenticatedSubject.next(false);
+    this.router.navigate(['/auth/login']);
+  }
+
+  // Refresh token - would be implemented in a real app
+  refreshToken(): Observable<string> {
+    // This would call an API endpoint to refresh the token
+    // For now, we'll just return the current token
+    const token = this.tokenValue;
+    if (!token) {
+      return throwError(() => new Error('No token available'));
+    }
+    return of(token);
+  }
+
+  // Handle successful auth response
+  private handleAuthResponse(response: AuthResponse): void {
+    if (response && response.token && response.user) {
+      localStorage.setItem('token', response.token);
+      localStorage.setItem('user', JSON.stringify(response.user));
+      this.tokenSubject.next(response.token);
+      this.currentUserSubject.next(response.user);
+    }
   }
 }

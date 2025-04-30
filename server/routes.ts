@@ -2,6 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import { storage } from "./storage";
+import { furnitureStorage } from "./furniture-storage";
 import { z } from "zod";
 import { 
   insertAchievementSchema, 
@@ -10,7 +11,17 @@ import {
   insertUserAchievementSchema, 
   insertUserPuzzleSchema, 
   insertUserRegionSchema, 
-  insertUserSchema 
+  insertUserSchema,
+  
+  // Furniture schemas
+  insertDeliverySchema,
+  insertDeliveryItemSchema,
+  insertDriverSchema,
+  insertFurnitureSchema,
+  insertMessageSchema,
+  insertNotificationSchema,
+  insertPaymentSchema,
+  insertReviewSchema
 } from "@shared/schema";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -229,6 +240,276 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid achievement data", errors: error.errors });
       }
       res.status(500).json({ message: "Error unlocking achievement" });
+    }
+  });
+  
+  // =============== FURNITURE DELIVERY API ROUTES ===============
+  
+  // Auth routes
+  app.post("/api/auth/register", async (req, res) => {
+    try {
+      const userData = req.body;
+      const user = await furnitureStorage.createUser(userData);
+      res.status(201).json({ user, token: "mock-jwt-token" });
+    } catch (error) {
+      res.status(500).json({ message: "Error creating user" });
+    }
+  });
+  
+  app.post("/api/auth/login", async (req, res) => {
+    try {
+      const { email, password } = req.body;
+      const user = await furnitureStorage.getUserByEmail(email);
+      
+      if (!user || user.password !== password) {
+        return res.status(401).json({ message: "Invalid credentials" });
+      }
+      
+      res.json({ user, token: "mock-jwt-token" });
+    } catch (error) {
+      res.status(500).json({ message: "Error during login" });
+    }
+  });
+  
+  // Furniture routes
+  app.get("/api/furniture", async (req, res) => {
+    try {
+      const category = req.query.category as string;
+      
+      const furniture = category 
+        ? await furnitureStorage.getFurnitureByCategory(category)
+        : await furnitureStorage.getAllFurniture();
+        
+      res.json(furniture);
+    } catch (error) {
+      res.status(500).json({ message: "Error retrieving furniture" });
+    }
+  });
+  
+  app.get("/api/furniture/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const furniture = await furnitureStorage.getFurniture(id);
+      
+      if (!furniture) {
+        return res.status(404).json({ message: "Furniture not found" });
+      }
+      
+      res.json(furniture);
+    } catch (error) {
+      res.status(500).json({ message: "Error retrieving furniture" });
+    }
+  });
+  
+  // Delivery routes
+  app.get("/api/deliveries/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const delivery = await furnitureStorage.getDeliveryWithItems(id);
+      
+      if (!delivery) {
+        return res.status(404).json({ message: "Delivery not found" });
+      }
+      
+      res.json(delivery);
+    } catch (error) {
+      res.status(500).json({ message: "Error retrieving delivery" });
+    }
+  });
+  
+  app.post("/api/deliveries", async (req, res) => {
+    try {
+      const deliveryData = req.body;
+      const delivery = await furnitureStorage.createDelivery(deliveryData);
+      res.status(201).json(delivery);
+    } catch (error) {
+      res.status(500).json({ message: "Error creating delivery" });
+    }
+  });
+  
+  app.patch("/api/deliveries/:id/status", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { status } = req.body;
+      
+      const delivery = await furnitureStorage.updateDeliveryStatus(id, status);
+      res.json(delivery);
+    } catch (error) {
+      res.status(500).json({ message: "Error updating delivery status" });
+    }
+  });
+  
+  app.patch("/api/deliveries/:id/driver", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { driverId } = req.body;
+      
+      const delivery = await furnitureStorage.assignDriverToDelivery(id, driverId);
+      res.json(delivery);
+    } catch (error) {
+      res.status(500).json({ message: "Error assigning driver" });
+    }
+  });
+  
+  // Customer-specific delivery routes
+  app.get("/api/customers/:id/deliveries", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const deliveries = await furnitureStorage.getDeliveriesByCustomerId(id);
+      res.json(deliveries);
+    } catch (error) {
+      res.status(500).json({ message: "Error retrieving customer deliveries" });
+    }
+  });
+  
+  app.get("/api/customers/:id/deliveries/active", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      // In a real app, we would filter active deliveries
+      const deliveries = await furnitureStorage.getDeliveriesByCustomerId(id);
+      res.json(deliveries.filter(d => d.status !== 'completed' && d.status !== 'cancelled'));
+    } catch (error) {
+      res.status(500).json({ message: "Error retrieving active deliveries" });
+    }
+  });
+  
+  app.get("/api/customers/:id/deliveries/recent", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      // In a real app, we would get only recent deliveries
+      const deliveries = await furnitureStorage.getDeliveriesByCustomerId(id);
+      res.json(deliveries.filter(d => d.status === 'completed').slice(0, 5));
+    } catch (error) {
+      res.status(500).json({ message: "Error retrieving recent deliveries" });
+    }
+  });
+  
+  // Driver-specific routes
+  app.get("/api/drivers/:id/deliveries", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const deliveries = await furnitureStorage.getDeliveriesByDriverId(id);
+      res.json(deliveries);
+    } catch (error) {
+      res.status(500).json({ message: "Error retrieving driver deliveries" });
+    }
+  });
+  
+  app.get("/api/drivers/:id/active-deliveries", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const deliveries = await furnitureStorage.getActiveDeliveriesByDriverId(id);
+      res.json(deliveries);
+    } catch (error) {
+      res.status(500).json({ message: "Error retrieving active deliveries" });
+    }
+  });
+  
+  app.patch("/api/drivers/:id/location", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { latitude, longitude } = req.body;
+      
+      const driver = await furnitureStorage.updateDriverLocation(id, latitude, longitude);
+      res.json(driver);
+    } catch (error) {
+      res.status(500).json({ message: "Error updating driver location" });
+    }
+  });
+  
+  app.get("/api/drivers/nearby", async (req, res) => {
+    try {
+      const latitude = parseFloat(req.query.latitude as string);
+      const longitude = parseFloat(req.query.longitude as string);
+      const radius = parseFloat(req.query.radius as string) || 10; // default 10km
+      
+      const drivers = await furnitureStorage.getDriversNearby(latitude, longitude, radius);
+      res.json(drivers);
+    } catch (error) {
+      res.status(500).json({ message: "Error finding nearby drivers" });
+    }
+  });
+  
+  // Messages routes
+  app.get("/api/deliveries/:id/messages", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const messages = await furnitureStorage.getMessagesByDeliveryId(id);
+      res.json(messages);
+    } catch (error) {
+      res.status(500).json({ message: "Error retrieving messages" });
+    }
+  });
+  
+  app.post("/api/messages", async (req, res) => {
+    try {
+      const messageData = req.body;
+      const message = await furnitureStorage.createMessage(messageData);
+      res.status(201).json(message);
+    } catch (error) {
+      res.status(500).json({ message: "Error sending message" });
+    }
+  });
+  
+  app.patch("/api/messages/:id/read", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const message = await furnitureStorage.markMessageAsRead(id);
+      res.json(message);
+    } catch (error) {
+      res.status(500).json({ message: "Error marking message as read" });
+    }
+  });
+  
+  // Reviews routes
+  app.get("/api/drivers/:id/reviews", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const reviews = await furnitureStorage.getReviewsByDriverId(id);
+      res.json(reviews);
+    } catch (error) {
+      res.status(500).json({ message: "Error retrieving driver reviews" });
+    }
+  });
+  
+  app.post("/api/reviews", async (req, res) => {
+    try {
+      const reviewData = req.body;
+      const review = await furnitureStorage.createReview(reviewData);
+      res.status(201).json(review);
+    } catch (error) {
+      res.status(500).json({ message: "Error creating review" });
+    }
+  });
+  
+  // Notifications routes
+  app.get("/api/users/:id/notifications", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const notifications = await furnitureStorage.getNotificationsByUserId(id);
+      res.json(notifications);
+    } catch (error) {
+      res.status(500).json({ message: "Error retrieving notifications" });
+    }
+  });
+  
+  app.get("/api/users/:id/unread-notifications", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const notifications = await furnitureStorage.getUnreadNotificationsByUserId(id);
+      res.json(notifications);
+    } catch (error) {
+      res.status(500).json({ message: "Error retrieving unread notifications" });
+    }
+  });
+  
+  app.patch("/api/notifications/:id/read", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const notification = await furnitureStorage.markNotificationAsRead(id);
+      res.json(notification);
+    } catch (error) {
+      res.status(500).json({ message: "Error marking notification as read" });
     }
   });
 

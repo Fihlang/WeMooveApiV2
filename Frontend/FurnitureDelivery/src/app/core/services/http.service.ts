@@ -9,186 +9,167 @@ import { AuthService } from './auth.service';
   providedIn: 'root'
 })
 export class HttpService {
-  private baseUrl = environment.apiUrl;
-
   constructor(
     private http: HttpClient,
     private authService: AuthService
   ) {}
 
   /**
-   * Get request
-   * @param endpoint - API endpoint
-   * @param params - Query parameters
-   * @param requiresAuth - Whether the request requires authentication
+   * Performs an HTTP GET request
+   * @param endpoint - API endpoint (without base URL)
+   * @param options - Optional HTTP options
    */
-  public get<T>(endpoint: string, params: any = {}, requiresAuth: boolean = true): Observable<T> {
-    const url = this.buildUrl(endpoint);
-    const options = {
-      headers: this.buildHeaders(requiresAuth),
-      params: this.buildParams(params)
-    };
+  get<T>(endpoint: string, options: {
+    headers?: HttpHeaders | { [header: string]: string | string[] },
+    params?: HttpParams | { [param: string]: string | string[] | number | boolean | readonly (string | string[] | number | boolean)[] },
+    reportProgress?: boolean,
+    withCredentials?: boolean
+  } = {}): Observable<T> {
+    const url = this.createUrl(endpoint);
+    const httpOptions = this.createOptions(options);
 
-    return this.http.get<T>(url, options)
+    return this.http.get<T>(url, httpOptions)
       .pipe(
         catchError(error => this.handleError(error))
       );
   }
 
   /**
-   * Post request
-   * @param endpoint - API endpoint
+   * Performs an HTTP POST request
+   * @param endpoint - API endpoint (without base URL)
    * @param body - Request body
-   * @param requiresAuth - Whether the request requires authentication
+   * @param options - Optional HTTP options
    */
-  public post<T>(endpoint: string, body: any, requiresAuth: boolean = true): Observable<T> {
-    const url = this.buildUrl(endpoint);
-    const options = {
-      headers: this.buildHeaders(requiresAuth)
-    };
+  post<T>(endpoint: string, body: any, options: {
+    headers?: HttpHeaders | { [header: string]: string | string[] },
+    params?: HttpParams | { [param: string]: string | string[] | number | boolean | readonly (string | string[] | number | boolean)[] },
+    reportProgress?: boolean,
+    withCredentials?: boolean
+  } = {}): Observable<T> {
+    const url = this.createUrl(endpoint);
+    const httpOptions = this.createOptions(options);
 
-    return this.http.post<T>(url, body, options)
+    return this.http.post<T>(url, body, httpOptions)
       .pipe(
         catchError(error => this.handleError(error))
       );
   }
 
   /**
-   * Put request
-   * @param endpoint - API endpoint
+   * Performs an HTTP PUT request
+   * @param endpoint - API endpoint (without base URL)
    * @param body - Request body
-   * @param requiresAuth - Whether the request requires authentication
+   * @param options - Optional HTTP options
    */
-  public put<T>(endpoint: string, body: any, requiresAuth: boolean = true): Observable<T> {
-    const url = this.buildUrl(endpoint);
-    const options = {
-      headers: this.buildHeaders(requiresAuth)
-    };
+  put<T>(endpoint: string, body: any, options: {
+    headers?: HttpHeaders | { [header: string]: string | string[] },
+    params?: HttpParams | { [param: string]: string | string[] | number | boolean | readonly (string | string[] | number | boolean)[] },
+    reportProgress?: boolean,
+    withCredentials?: boolean
+  } = {}): Observable<T> {
+    const url = this.createUrl(endpoint);
+    const httpOptions = this.createOptions(options);
 
-    return this.http.put<T>(url, body, options)
+    return this.http.put<T>(url, body, httpOptions)
       .pipe(
         catchError(error => this.handleError(error))
       );
   }
 
   /**
-   * Patch request
-   * @param endpoint - API endpoint
+   * Performs an HTTP PATCH request
+   * @param endpoint - API endpoint (without base URL)
    * @param body - Request body
-   * @param requiresAuth - Whether the request requires authentication
+   * @param options - Optional HTTP options
    */
-  public patch<T>(endpoint: string, body: any, requiresAuth: boolean = true): Observable<T> {
-    const url = this.buildUrl(endpoint);
-    const options = {
-      headers: this.buildHeaders(requiresAuth)
-    };
+  patch<T>(endpoint: string, body: any, options: {
+    headers?: HttpHeaders | { [header: string]: string | string[] },
+    params?: HttpParams | { [param: string]: string | string[] | number | boolean | readonly (string | string[] | number | boolean)[] },
+    reportProgress?: boolean,
+    withCredentials?: boolean
+  } = {}): Observable<T> {
+    const url = this.createUrl(endpoint);
+    const httpOptions = this.createOptions(options);
 
-    return this.http.patch<T>(url, body, options)
+    return this.http.patch<T>(url, body, httpOptions)
       .pipe(
         catchError(error => this.handleError(error))
       );
   }
 
   /**
-   * Delete request
-   * @param endpoint - API endpoint
-   * @param requiresAuth - Whether the request requires authentication
+   * Performs an HTTP DELETE request
+   * @param endpoint - API endpoint (without base URL)
+   * @param options - Optional HTTP options
    */
-  public delete<T>(endpoint: string, requiresAuth: boolean = true): Observable<T> {
-    const url = this.buildUrl(endpoint);
-    const options = {
-      headers: this.buildHeaders(requiresAuth)
-    };
+  delete<T>(endpoint: string, options: {
+    headers?: HttpHeaders | { [header: string]: string | string[] },
+    params?: HttpParams | { [param: string]: string | string[] | number | boolean | readonly (string | string[] | number | boolean)[] },
+    reportProgress?: boolean,
+    withCredentials?: boolean,
+    body?: any
+  } = {}): Observable<T> {
+    const url = this.createUrl(endpoint);
+    const httpOptions = this.createOptions(options);
 
-    return this.http.delete<T>(url, options)
+    return this.http.delete<T>(url, httpOptions)
       .pipe(
         catchError(error => this.handleError(error))
       );
   }
 
   /**
-   * Build the full URL for the API request
-   * @param endpoint - API endpoint
+   * Creates complete URL by combining API base URL with endpoint
    */
-  private buildUrl(endpoint: string): string {
-    // Remove leading slash from endpoint if present
-    if (endpoint.startsWith('/')) {
-      endpoint = endpoint.substring(1);
+  private createUrl(endpoint: string): string {
+    // Remove leading slash if present
+    const cleanEndpoint = endpoint.startsWith('/') ? endpoint.substring(1) : endpoint;
+    return `${environment.apiUrl}/${cleanEndpoint}`;
+  }
+
+  /**
+   * Creates HTTP options with auth token (if available)
+   */
+  private createOptions(options: any): any {
+    const token = this.authService.tokenValue;
+    if (!token) {
+      return options;
     }
+
+    // Clone the headers to avoid modifying the original
+    const headers = options.headers ? 
+      new HttpHeaders(options.headers) : 
+      new HttpHeaders();
+
+    // Add Authorization header with JWT token
+    const authHeaders = headers.set('Authorization', `Bearer ${token}`);
     
-    return `${this.baseUrl}/${endpoint}`;
+    return {
+      ...options,
+      headers: authHeaders
+    };
   }
 
   /**
-   * Build headers for the API request
-   * @param requiresAuth - Whether the request requires authentication
-   */
-  private buildHeaders(requiresAuth: boolean): HttpHeaders {
-    let headers = new HttpHeaders({
-      'Content-Type': 'application/json',
-      'Accept': 'application/json'
-    });
-
-    if (requiresAuth) {
-      const token = this.authService.getToken();
-      if (token) {
-        headers = headers.set('Authorization', `Bearer ${token}`);
-      }
-    }
-
-    return headers;
-  }
-
-  /**
-   * Build query parameters for the API request
-   * @param params - Query parameters
-   */
-  private buildParams(params: any): HttpParams {
-    let httpParams = new HttpParams();
-    
-    Object.keys(params).forEach(key => {
-      if (params[key] !== undefined && params[key] !== null) {
-        httpParams = httpParams.set(key, params[key]);
-      }
-    });
-    
-    return httpParams;
-  }
-
-  /**
-   * Handle errors from API requests
-   * @param error - HTTP error
+   * Error handler
    */
   private handleError(error: any): Observable<never> {
-    let errorMessage = 'An unknown error occurred';
+    let errorMessage = 'An error occurred';
     
     if (error.error instanceof ErrorEvent) {
       // Client-side error
       errorMessage = `Error: ${error.error.message}`;
-    } else if (error.status) {
+    } else {
       // Server-side error
-      switch (error.status) {
-        case 401:
-          // Unauthorized - Token might be expired
-          this.authService.logout();
-          errorMessage = 'Your session has expired. Please login again.';
-          break;
-        case 403:
-          errorMessage = 'You do not have permission to perform this action.';
-          break;
-        case 404:
-          errorMessage = 'The requested resource was not found.';
-          break;
-        case 500:
-          errorMessage = 'An internal server error occurred. Please try again later.';
-          break;
-        default:
-          errorMessage = error.error?.message || error.statusText || errorMessage;
+      errorMessage = error.error?.message || `Error Code: ${error.status}, Message: ${error.message}`;
+      
+      // Handle 401 Unauthorized error
+      if (error.status === 401) {
+        this.authService.logout();
       }
     }
     
-    console.error('API Error:', error);
-    
+    console.error(errorMessage);
     return throwError(() => new Error(errorMessage));
   }
 }
