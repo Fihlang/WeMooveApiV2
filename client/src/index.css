@@ -1,0 +1,156 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes achievement-pop {
+  0% { transform: scale(0.5); opacity: 0; }
+  80% { transform: scale(1.1); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes puzzle-solved {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+
+@keyframes pulse {
+  0% { transform: scale(1); opacity: 1; }
+  100% { transform: scale(1.5); opacity: 0; }
+}
+
+:root {
+  --background: 0 0% 98%;
+  --foreground: 20 14.3% 4.1%;
+  
+  --muted: 60 4.8% 95.9%;
+  --muted-foreground: 25 5.3% 44.7%;
+  
+  --popover: 0 0% 100%;
+  --popover-foreground: 20 14.3% 4.1%;
+  
+  --card: 0 0% 100%;
+  --card-foreground: 20 14.3% 4.1%;
+  
+  --border: 20 5.9% 90%;
+  --input: 20 5.9% 90%;
+  
+  --primary: 264 49% 52%;
+  --primary-foreground: 0 0% 100%;
+  
+  --secondary: 46 100% 62%;
+  --secondary-foreground: 20 14.3% 4.1%;
+  
+  --accent: 0 75% 70%;
+  --accent-foreground: 0 0% 100%;
+  
+  --destructive: 0 84.2% 60.2%;
+  --destructive-foreground: 60 9.1% 97.8%;
+  
+  --success: 142 69% 49%;
+  --success-foreground: 0 0% 100%;
+  
+  --info: 206 70% 53%;
+  --info-foreground: 0 0% 100%;
+  
+  --light: 210 17% 98%;
+  --dark: 210 10% 23%;
+  
+  --lightgray: 210 16% 93%;
+  
+  --ring: 264 49% 52%;
+  --radius: 0.5rem;
+  
+  --chart-1: 264 49% 52%;
+  --chart-2: 46 100% 62%;
+  --chart-3: 0 75% 70%;
+  --chart-4: 206 70% 53%;
+  --chart-5: 142 69% 49%;
+}
+
+.dark {
+  --background: 240 10% 3.9%;
+  --foreground: 0 0% 98%;
+  
+  --muted: 240 3.7% 15.9%;
+  --muted-foreground: 240 5% 64.9%;
+  
+  --popover: 240 10% 3.9%;
+  --popover-foreground: 0 0% 98%;
+  
+  --card: 240 10% 3.9%;
+  --card-foreground: 0 0% 98%;
+  
+  --border: 240 3.7% 15.9%;
+  --input: 240 3.7% 15.9%;
+  
+  --primary: 264 49% 52%;
+  --primary-foreground: 0 0% 98%;
+  
+  --secondary: 46 100% 62%;
+  --secondary-foreground: 20 14.3% 4.1%;
+  
+  --accent: 0 75% 70%;
+  --accent-foreground: 0 0% 98%;
+  
+  --destructive: 0 62.8% 30.6%;
+  --destructive-foreground: 0 0% 98%;
+  
+  --success: 142 69% 39%;
+  --success-foreground: 0 0% 98%;
+  
+  --info: 206 70% 43%;
+  --info-foreground: 0 0% 98%;
+  
+  --light: 210 10% 14%;
+  --dark: 210 10% 3%;
+  
+  --lightgray: 210 10% 16%;
+  
+  --ring: 240 4.9% 83.9%;
+}
+
+/* Custom classes */
+.achievement-pop {
+  animation: achievement-pop 0.7s ease-out;
+  animation-fill-mode: forwards;
+}
+
+.puzzle-solved {
+  animation: puzzle-solved 1s ease-out;
+}
+
+.map-marker-pulse {
+  position: relative;
+}
+
+.map-marker-pulse::before {
+  content: '';
+  position: absolute;
+  border-radius: 50%;
+  height: 100%;
+  width: 100%;
+  top: 0;
+  left: 0;
+  background-color: rgba(var(--primary), 0.4);
+  animation: pulse 2s infinite;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  
+  body {
+    @apply font-sans bg-background text-foreground antialiased;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-heading;
+  }
+}
