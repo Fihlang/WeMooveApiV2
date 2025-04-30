@@ -1,25 +1,91 @@
-using System;
-using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 
 namespace FurnitureDelivery.API.DTOs
 {
+    public class CreateReviewRequest
+    {
+        [Required]
+        public int DeliveryId { get; set; }
+
+        [Required]
+        public int CustomerId { get; set; }
+
+        [Required]
+        public int DriverId { get; set; }
+
+        [Required]
+        [Range(1, 5, ErrorMessage = "Rating must be between 1 and 5")]
+        public int Rating { get; set; }
+
+        public string? Comment { get; set; }
+    }
+
+    public class ReviewDTO
+    {
+        public int Id { get; set; }
+        public DateTime CreatedAt { get; set; }
+        public int DeliveryId { get; set; }
+        public int CustomerId { get; set; }
+        public UserDTO Customer { get; set; }
+        public int DriverId { get; set; }
+        public DriverDTO Driver { get; set; }
+        public int Rating { get; set; }
+        public string? Comment { get; set; }
+    }
+
+    public class CreateMessageRequest
+    {
+        [Required]
+        public int DeliveryId { get; set; }
+
+        [Required]
+        public int SenderId { get; set; }
+
+        [Required]
+        public int ReceiverId { get; set; }
+
+        [Required]
+        public string Content { get; set; }
+    }
+
+    public class MessageDTO
+    {
+        public int Id { get; set; }
+        public DateTime CreatedAt { get; set; }
+        public int DeliveryId { get; set; }
+        public int SenderId { get; set; }
+        public UserDTO Sender { get; set; }
+        public int ReceiverId { get; set; }
+        public UserDTO Receiver { get; set; }
+        public string Content { get; set; }
+        public bool IsRead { get; set; }
+    }
+
+    public class NotificationDTO
+    {
+        public int Id { get; set; }
+        public DateTime CreatedAt { get; set; }
+        public int UserId { get; set; }
+        public string Type { get; set; }
+        public string Title { get; set; }
+        public string Message { get; set; }
+        public bool IsRead { get; set; }
+        public string? RelatedEntityType { get; set; }
+        public int? RelatedEntityId { get; set; }
+    }
+
+    public class MarkNotificationReadRequest
+    {
+        [Required]
+        public int NotificationId { get; set; }
+    }
+
     public class ApiResponse<T>
     {
         public bool Success { get; set; }
         public string Message { get; set; }
         public T Data { get; set; }
-        public List<string> Errors { get; set; } = new List<string>();
-        
-        public ApiResponse() { }
-        
-        public ApiResponse(bool success, string message = null, T data = default, List<string> errors = null)
-        {
-            Success = success;
-            Message = message;
-            Data = data;
-            Errors = errors ?? new List<string>();
-        }
-        
+
         public static ApiResponse<T> SuccessResponse(T data, string message = "Operation successful")
         {
             return new ApiResponse<T>
@@ -29,80 +95,41 @@ namespace FurnitureDelivery.API.DTOs
                 Data = data
             };
         }
-        
-        public static ApiResponse<T> ErrorResponse(string message, List<string> errors = null)
+
+        public static ApiResponse<T> ErrorResponse(string message)
         {
             return new ApiResponse<T>
             {
                 Success = false,
                 Message = message,
-                Errors = errors ?? new List<string>()
+                Data = default
             };
         }
     }
-    
-    public class PaginatedResponse<T>
+
+    public class UpdateDriverLocationRequest
     {
-        public List<T> Items { get; set; }
-        public int TotalCount { get; set; }
-        public int PageIndex { get; set; }
-        public int PageSize { get; set; }
-        public int TotalPages => (int)Math.Ceiling(TotalCount / (double)PageSize);
-        public bool HasPreviousPage => PageIndex > 1;
-        public bool HasNextPage => PageIndex < TotalPages;
-    }
-    
-    public class PaginationParams
-    {
-        private const int MaxPageSize = 50;
-        private int _pageSize = 10;
-        
-        public int PageIndex { get; set; } = 1;
-        
-        public int PageSize
-        {
-            get => _pageSize;
-            set => _pageSize = (value > MaxPageSize) ? MaxPageSize : value;
-        }
-        
-        public string SortBy { get; set; }
-        public bool Ascending { get; set; } = true;
-    }
-    
-    public class WebSocketMessage
-    {
-        public string Type { get; set; }
-        public object Data { get; set; }
-        public DateTime Timestamp { get; set; } = DateTime.UtcNow;
-    }
-    
-    public class GeoLocation
-    {
+        [Required]
+        [Range(-90, 90, ErrorMessage = "Latitude must be between -90 and 90")]
         public double Latitude { get; set; }
+
+        [Required]
+        [Range(-180, 180, ErrorMessage = "Longitude must be between -180 and 180")]
         public double Longitude { get; set; }
     }
-    
-    public class DeliveryStatusUpdate
+
+    public class DriverNearbyRequest
     {
-        public int DeliveryId { get; set; }
-        public string Status { get; set; }
-        public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
-    }
-    
-    public class DriverLocationUpdate
-    {
-        public int DriverId { get; set; }
-        public GeoLocation Location { get; set; }
-        public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
-    }
-    
-    public class NewMessageNotification
-    {
-        public int DeliveryId { get; set; }
-        public int MessageId { get; set; }
-        public int SenderId { get; set; }
-        public string SenderType { get; set; }
-        public string Content { get; set; }
-        public DateTime CreatedAt { get; set; }
+        [Required]
+        [Range(-90, 90, ErrorMessage = "Latitude must be between -90 and 90")]
+        public double Latitude { get; set; }
+
+        [Required]
+        [Range(-180, 180, ErrorMessage = "Longitude must be between -180 and 180")]
+        public double Longitude { get; set; }
+
+        [Required]
+        [Range(0.1, 100, ErrorMessage = "Radius must be between 0.1 and 100 km")]
+        public double Radius { get; set; } = 10.0; // Default 10km
     }
 }
