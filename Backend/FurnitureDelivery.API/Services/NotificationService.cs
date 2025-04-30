@@ -1,8 +1,7 @@
 using FurnitureDelivery.API.Data;
+using FurnitureDelivery.API.DTOs;
 using FurnitureDelivery.API.Models;
 using Microsoft.EntityFrameworkCore;
-using System;
-using System.Threading.Tasks;
 
 namespace FurnitureDelivery.API.Services
 {
@@ -11,7 +10,9 @@ namespace FurnitureDelivery.API.Services
         private readonly ApplicationDbContext _dbContext;
         private readonly IWebSocketService _webSocketService;
 
-        public NotificationService(ApplicationDbContext dbContext, IWebSocketService webSocketService)
+        public NotificationService(
+            ApplicationDbContext dbContext,
+            IWebSocketService webSocketService)
         {
             _dbContext = dbContext;
             _webSocketService = webSocketService;
@@ -22,10 +23,17 @@ namespace FurnitureDelivery.API.Services
             string type,
             string title,
             string message,
-            string relatedEntityType = null,
+            string? relatedEntityType = null,
             int? relatedEntityId = null)
         {
-            // Create the notification
+            // Check if user exists
+            var user = await _dbContext.Users.FindAsync(userId);
+            if (user == null)
+            {
+                throw new ArgumentException($"User with ID {userId} not found");
+            }
+
+            // Create notification
             var notification = new Notification
             {
                 UserId = userId,
@@ -38,52 +46,58 @@ namespace FurnitureDelivery.API.Services
                 CreatedAt = DateTime.UtcNow
             };
 
-            // Save notification to database
             _dbContext.Notifications.Add(notification);
             await _dbContext.SaveChangesAsync();
 
-            // Send notification to user via WebSockets if they're connected
-            try
+            // Send real-time notification via WebSocket
+            await _webSocketService.SendToUser(userId, new WebSocketMessage
             {
-                await _webSocketService.SendToUser(userId, new
+                Type = "notification",
+                Data = new NotificationDTO
                 {
-                    type = "notification",
-                    data = notification
-                });
-            }
-            catch (Exception)
-            {
-                // If websocket send fails, we still continue
-                // The notification is stored in the database and will be
-                // available when the user queries for notifications
-            }
+                    Id = notification.Id,
+                    CreatedAt = notification.CreatedAt,
+                    UserId = notification.UserId,
+                    Type = notification.Type,
+                    Title = notification.Title,
+                    Message = notification.Message,
+                    IsRead = notification.IsRead,
+                    RelatedEntityType = notification.RelatedEntityType,
+                    RelatedEntityId = notification.RelatedEntityId
+                }
+            });
 
             return notification;
         }
 
-        public async Task MarkAsRead(int notificationId)
+        public async Task<Notification> MarkNotificationAsRead(int notificationId)
         {
             var notification = await _dbContext.Notifications.FindAsync(notificationId);
-            
-            if (notification != null)
+            if (notification == null)
             {
-                notification.IsRead = true;
-                await _dbContext.SaveChangesAsync();
+                throw new ArgumentException($"Notification with ID {notificationId} not found");
             }
+
+            notification.IsRead = true;
+            await _dbContext.SaveChangesAsync();
+
+            return notification;
         }
 
-        public async Task MarkAllAsRead(int userId)
+        public async Task<List<Notification>> GetNotificationsForUser(int userId)
         {
-            var notifications = await _dbContext.Notifications
-                .Where(n => n.UserId == userId && !n.IsRead)
+            return await _dbContext.Notifications
+                .Where(n => n.UserId == userId)
+                .OrderByDescending(n => n.CreatedAt)
                 .ToListAsync();
+        }
 
-            foreach (var notification in notifications)
-            {
-                notification.IsRead = true;
-            }
-
-            await _dbContext.SaveChangesAsync();
+        public async Task<List<Notification>> GetUnreadNotificationsForUser(int userId)
+        {
+            return await _dbContext.Notifications
+                .Where(n => n.UserId == userId && !n.IsRead)
+                .OrderByDescending(n => n.CreatedAt)
+                .ToListAsync();
         }
     }
 }

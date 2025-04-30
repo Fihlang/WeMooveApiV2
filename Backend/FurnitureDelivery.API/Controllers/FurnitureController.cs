@@ -1,180 +1,191 @@
+using System.Security.Claims;
 using FurnitureDelivery.API.Data;
 using FurnitureDelivery.API.DTOs;
 using FurnitureDelivery.API.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text.Json;
-using System.Threading.Tasks;
 
 namespace FurnitureDelivery.API.Controllers
 {
-    [Route("api/furniture")]
     [ApiController]
+    [Route("api/[controller]")]
     public class FurnitureController : ControllerBase
     {
-        private readonly ApplicationDbContext _context;
+        private readonly ApplicationDbContext _dbContext;
 
-        public FurnitureController(ApplicationDbContext context)
+        public FurnitureController(ApplicationDbContext dbContext)
         {
-            _context = context;
+            _dbContext = dbContext;
         }
 
-        // GET: api/furniture
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<FurnitureDTO>>> GetFurniture([FromQuery] string category = null)
+        public async Task<ActionResult<ApiResponse<List<FurnitureDTO>>>> GetFurniture()
         {
-            var query = _context.Furniture.AsQueryable();
+            var furniture = await _dbContext.Furniture
+                .OrderBy(f => f.Category)
+                .ThenBy(f => f.Name)
+                .ToListAsync();
 
-            // Filter by category if provided
-            if (!string.IsNullOrEmpty(category))
-            {
-                query = query.Where(f => f.Category == category);
-            }
-
-            var furniture = await query.ToListAsync();
-
-            // Map to DTOs
-            var furnitureDtos = furniture.Select(f => new FurnitureDTO
+            var furnitureDTOs = furniture.Select(f => new FurnitureDTO
             {
                 Id = f.Id,
                 Name = f.Name,
                 Description = f.Description,
                 Weight = f.Weight,
-                Dimensions = JsonSerializer.Deserialize<DimensionsDTO>(f.DimensionsJson),
+                Dimensions = f.Dimensions,
                 Category = f.Category,
                 ImageUrl = f.ImageUrl
             }).ToList();
 
-            return Ok(furnitureDtos);
+            return Ok(ApiResponse<List<FurnitureDTO>>.SuccessResponse(furnitureDTOs));
         }
 
-        // GET: api/furniture/5
         [HttpGet("{id}")]
-        public async Task<ActionResult<FurnitureDTO>> GetFurniture(int id)
+        public async Task<ActionResult<ApiResponse<FurnitureDTO>>> GetFurnitureById(int id)
         {
-            var furniture = await _context.Furniture.FindAsync(id);
+            var furniture = await _dbContext.Furniture.FindAsync(id);
 
             if (furniture == null)
             {
-                return NotFound(new { message = "Furniture not found" });
+                return NotFound(ApiResponse<FurnitureDTO>.ErrorResponse("Furniture not found"));
             }
 
-            var furnitureDto = new FurnitureDTO
+            var furnitureDTO = new FurnitureDTO
             {
                 Id = furniture.Id,
                 Name = furniture.Name,
                 Description = furniture.Description,
                 Weight = furniture.Weight,
-                Dimensions = JsonSerializer.Deserialize<DimensionsDTO>(furniture.DimensionsJson),
+                Dimensions = furniture.Dimensions,
                 Category = furniture.Category,
                 ImageUrl = furniture.ImageUrl
             };
 
-            return Ok(furnitureDto);
+            return Ok(ApiResponse<FurnitureDTO>.SuccessResponse(furnitureDTO));
         }
 
-        // POST: api/furniture
-        [HttpPost]
-        [Authorize(Roles = "admin")]
-        public async Task<ActionResult<FurnitureDTO>> CreateFurniture(CreateFurnitureDTO createFurnitureDto)
+        [HttpGet("category/{category}")]
+        public async Task<ActionResult<ApiResponse<List<FurnitureDTO>>>> GetFurnitureByCategory(string category)
         {
-            // Convert dimensions to JSON
-            string dimensionsJson = JsonSerializer.Serialize(createFurnitureDto.Dimensions);
-
-            var furniture = new Furniture
-            {
-                Name = createFurnitureDto.Name,
-                Description = createFurnitureDto.Description,
-                Weight = createFurnitureDto.Weight,
-                DimensionsJson = dimensionsJson,
-                Category = createFurnitureDto.Category,
-                ImageUrl = createFurnitureDto.ImageUrl
-            };
-
-            _context.Furniture.Add(furniture);
-            await _context.SaveChangesAsync();
-
-            var furnitureDto = new FurnitureDTO
-            {
-                Id = furniture.Id,
-                Name = furniture.Name,
-                Description = furniture.Description,
-                Weight = furniture.Weight,
-                Dimensions = createFurnitureDto.Dimensions,
-                Category = furniture.Category,
-                ImageUrl = furniture.ImageUrl
-            };
-
-            return CreatedAtAction(nameof(GetFurniture), new { id = furniture.Id }, furnitureDto);
-        }
-
-        // PUT: api/furniture/5
-        [HttpPut("{id}")]
-        [Authorize(Roles = "admin")]
-        public async Task<IActionResult> UpdateFurniture(int id, CreateFurnitureDTO updateFurnitureDto)
-        {
-            var furniture = await _context.Furniture.FindAsync(id);
-            if (furniture == null)
-            {
-                return NotFound(new { message = "Furniture not found" });
-            }
-
-            // Convert dimensions to JSON
-            string dimensionsJson = JsonSerializer.Serialize(updateFurnitureDto.Dimensions);
-
-            // Update furniture properties
-            furniture.Name = updateFurnitureDto.Name;
-            furniture.Description = updateFurnitureDto.Description;
-            furniture.Weight = updateFurnitureDto.Weight;
-            furniture.DimensionsJson = dimensionsJson;
-            furniture.Category = updateFurnitureDto.Category;
-            furniture.ImageUrl = updateFurnitureDto.ImageUrl;
-
-            await _context.SaveChangesAsync();
-
-            return NoContent();
-        }
-
-        // DELETE: api/furniture/5
-        [HttpDelete("{id}")]
-        [Authorize(Roles = "admin")]
-        public async Task<IActionResult> DeleteFurniture(int id)
-        {
-            var furniture = await _context.Furniture.FindAsync(id);
-            if (furniture == null)
-            {
-                return NotFound(new { message = "Furniture not found" });
-            }
-
-            // Check if furniture is used in any delivery
-            bool isUsedInDelivery = await _context.DeliveryItems
-                .AnyAsync(di => di.FurnitureId == id);
-
-            if (isUsedInDelivery)
-            {
-                return BadRequest(new { message = "Cannot delete furniture that is used in deliveries" });
-            }
-
-            _context.Furniture.Remove(furniture);
-            await _context.SaveChangesAsync();
-
-            return NoContent();
-        }
-
-        // GET: api/furniture/categories
-        [HttpGet("categories")]
-        public async Task<ActionResult<IEnumerable<string>>> GetCategories()
-        {
-            var categories = await _context.Furniture
-                .Select(f => f.Category)
-                .Distinct()
+            var furniture = await _dbContext.Furniture
+                .Where(f => f.Category.ToLower() == category.ToLower())
+                .OrderBy(f => f.Name)
                 .ToListAsync();
 
-            return Ok(categories);
+            var furnitureDTOs = furniture.Select(f => new FurnitureDTO
+            {
+                Id = f.Id,
+                Name = f.Name,
+                Description = f.Description,
+                Weight = f.Weight,
+                Dimensions = f.Dimensions,
+                Category = f.Category,
+                ImageUrl = f.ImageUrl
+            }).ToList();
+
+            return Ok(ApiResponse<List<FurnitureDTO>>.SuccessResponse(furnitureDTOs));
+        }
+
+        [HttpGet("categories")]
+        public async Task<ActionResult<ApiResponse<List<string>>>> GetCategories()
+        {
+            var categories = await _dbContext.Furniture
+                .Select(f => f.Category)
+                .Distinct()
+                .OrderBy(c => c)
+                .ToListAsync();
+
+            return Ok(ApiResponse<List<string>>.SuccessResponse(categories));
+        }
+
+        [HttpPost]
+        [Authorize(Roles = "admin")]
+        public async Task<ActionResult<ApiResponse<FurnitureDTO>>> CreateFurniture([FromBody] FurnitureDTO furnitureDTO)
+        {
+            // Validate required fields
+            if (string.IsNullOrEmpty(furnitureDTO.Name) || 
+                furnitureDTO.Weight <= 0 || 
+                string.IsNullOrEmpty(furnitureDTO.Category))
+            {
+                return BadRequest(ApiResponse<FurnitureDTO>.ErrorResponse(
+                    "Name, weight, and category are required fields"));
+            }
+
+            // Create new furniture
+            var furniture = new Furniture
+            {
+                Name = furnitureDTO.Name,
+                Description = furnitureDTO.Description,
+                Weight = furnitureDTO.Weight,
+                Dimensions = furnitureDTO.Dimensions,
+                Category = furnitureDTO.Category,
+                ImageUrl = furnitureDTO.ImageUrl
+            };
+
+            _dbContext.Furniture.Add(furniture);
+            await _dbContext.SaveChangesAsync();
+
+            // Map to DTO with ID
+            furnitureDTO.Id = furniture.Id;
+
+            return CreatedAtAction(
+                nameof(GetFurnitureById),
+                new { id = furniture.Id },
+                ApiResponse<FurnitureDTO>.SuccessResponse(furnitureDTO, "Furniture created successfully")
+            );
+        }
+
+        [HttpPut("{id}")]
+        [Authorize(Roles = "admin")]
+        public async Task<ActionResult<ApiResponse<FurnitureDTO>>> UpdateFurniture(int id, [FromBody] FurnitureDTO furnitureDTO)
+        {
+            var furniture = await _dbContext.Furniture.FindAsync(id);
+
+            if (furniture == null)
+            {
+                return NotFound(ApiResponse<FurnitureDTO>.ErrorResponse("Furniture not found"));
+            }
+
+            // Update properties
+            furniture.Name = furnitureDTO.Name;
+            furniture.Description = furnitureDTO.Description;
+            furniture.Weight = furnitureDTO.Weight;
+            furniture.Dimensions = furnitureDTO.Dimensions;
+            furniture.Category = furnitureDTO.Category;
+            furniture.ImageUrl = furnitureDTO.ImageUrl;
+
+            await _dbContext.SaveChangesAsync();
+
+            // Map to DTO
+            furnitureDTO.Id = furniture.Id;
+
+            return Ok(ApiResponse<FurnitureDTO>.SuccessResponse(furnitureDTO, "Furniture updated successfully"));
+        }
+
+        [HttpDelete("{id}")]
+        [Authorize(Roles = "admin")]
+        public async Task<ActionResult<ApiResponse<bool>>> DeleteFurniture(int id)
+        {
+            var furniture = await _dbContext.Furniture.FindAsync(id);
+
+            if (furniture == null)
+            {
+                return NotFound(ApiResponse<bool>.ErrorResponse("Furniture not found"));
+            }
+
+            // Check if furniture is in use in any delivery
+            var isInUse = await _dbContext.DeliveryItems.AnyAsync(di => di.FurnitureId == id);
+            if (isInUse)
+            {
+                return BadRequest(ApiResponse<bool>.ErrorResponse(
+                    "Cannot delete furniture that is associated with existing deliveries"));
+            }
+
+            _dbContext.Furniture.Remove(furniture);
+            await _dbContext.SaveChangesAsync();
+
+            return Ok(ApiResponse<bool>.SuccessResponse(true, "Furniture deleted successfully"));
         }
     }
 }

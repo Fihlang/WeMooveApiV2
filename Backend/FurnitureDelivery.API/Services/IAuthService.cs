@@ -5,26 +5,33 @@ namespace FurnitureDelivery.API.Services
     public interface IAuthService
     {
         /// <summary>
-        /// Hashes a password with a random salt
+        /// Generates a hash and salt for the given password
         /// </summary>
-        /// <param name="password">Plain text password</param>
-        /// <returns>A tuple with (hash, salt)</returns>
-        (string hash, string salt) HashPassword(string password);
-
+        /// <param name="password">The plaintext password to hash</param>
+        /// <returns>Tuple containing the password hash and salt</returns>
+        (byte[] passwordHash, byte[] passwordSalt) HashPassword(string password);
+        
         /// <summary>
-        /// Verifies a password against a stored hash and salt
+        /// Verifies if a given password matches the stored hash and salt
         /// </summary>
-        /// <param name="password">Plain text password to verify</param>
-        /// <param name="hash">Stored password hash</param>
-        /// <param name="salt">Stored salt</param>
-        /// <returns>True if the password matches, false otherwise</returns>
-        bool VerifyPassword(string password, string hash, string salt);
-
+        /// <param name="password">The plaintext password to verify</param>
+        /// <param name="passwordHash">The stored password hash</param>
+        /// <param name="passwordSalt">The stored password salt</param>
+        /// <returns>True if the password is valid, false otherwise</returns>
+        bool VerifyPassword(string password, byte[] passwordHash, byte[] passwordSalt);
+        
         /// <summary>
-        /// Generates a JWT token for authentication
+        /// Generates a JWT token for the given user
         /// </summary>
-        /// <param name="user">User to generate token for</param>
-        /// <returns>JWT token string</returns>
+        /// <param name="user">The user to generate a token for</param>
+        /// <returns>JWT token as string</returns>
         string GenerateJwtToken(User user);
+        
+        /// <summary>
+        /// Validates a JWT token
+        /// </summary>
+        /// <param name="token">The token to validate</param>
+        /// <returns>True if the token is valid, false otherwise</returns>
+        bool ValidateToken(string token);
     }
 }
