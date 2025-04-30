@@ -10,6 +10,9 @@ import AchievementCollection from "@/components/achievements/AchievementCollecti
 import RecentAchievements from "@/components/achievements/RecentAchievements";
 import NewAchievementPopup from "@/components/ui/NewAchievementPopup";
 import { useState, useEffect } from "react";
+import { Link } from "wouter";
+import { Button } from "@/components/ui/button";
+import { Truck, PackageOpen, MapPin, Clock } from "lucide-react";
 
 export default function HomePage() {
   // Use hard-coded user ID 1 for now. In a real app, this would come from authentication
@@ -52,6 +55,91 @@ export default function HomePage() {
 
   return (
     <div>
+      {/* Furniture Delivery App Promotion */}
+      <section className="bg-primary text-white py-24 px-4">
+        <div className="container mx-auto max-w-6xl">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
+            <div className="space-y-6">
+              <h1 className="text-4xl md:text-5xl font-bold">
+                Move Your Furniture <br />With Just a Few Clicks
+              </h1>
+              <p className="text-lg opacity-90">
+                The easiest way to deliver furniture. Connect with nearby drivers, track your delivery in real-time, and get your items safely to their destination.
+              </p>
+              <div className="flex flex-wrap gap-4">
+                <Button
+                  size="lg"
+                  className="bg-white text-primary hover:bg-white/90"
+                  asChild
+                >
+                  <Link href="/delivery/dashboard">
+                    <Truck className="mr-2 h-5 w-5" />
+                    Go to Dashboard
+                  </Link>
+                </Button>
+              </div>
+              
+              <div className="flex flex-wrap gap-6 pt-6">
+                <div className="flex items-center gap-2">
+                  <div className="bg-white/20 p-2 rounded-full">
+                    <PackageOpen className="h-5 w-5" />
+                  </div>
+                  <span>Easy Booking</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="bg-white/20 p-2 rounded-full">
+                    <MapPin className="h-5 w-5" />
+                  </div>
+                  <span>Live Tracking</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="bg-white/20 p-2 rounded-full">
+                    <Clock className="h-5 w-5" />
+                  </div>
+                  <span>Fast Delivery</span>
+                </div>
+              </div>
+            </div>
+            
+            <div className="bg-white/10 rounded-2xl p-6 relative">
+              <div className="absolute -top-3 -right-3 bg-white text-primary rounded-full px-4 py-1 font-bold text-sm">
+                New!
+              </div>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xl font-bold">Recent Deliveries</h3>
+                  <span className="text-xs bg-white/20 px-2 py-1 rounded-full">Last 24h</span>
+                </div>
+                
+                <div className="space-y-3">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="bg-white/5 rounded-lg p-3 flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="bg-white/10 h-10 w-10 rounded-full flex items-center justify-center">
+                          <PackageOpen className="h-5 w-5" />
+                        </div>
+                        <div>
+                          <p className="font-medium">Delivery #{i + 1000}</p>
+                          <p className="text-sm opacity-70">2 items • 3.2 miles</p>
+                        </div>
+                      </div>
+                      <span className="text-sm font-medium bg-green-500/20 px-2 py-1 rounded">Completed</span>
+                    </div>
+                  ))}
+                </div>
+                
+                <Button variant="outline" className="w-full border-white/20 hover:bg-white/10 mt-2" asChild>
+                  <Link href="/delivery/dashboard">
+                    View All Deliveries
+                  </Link>
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+      
+      {/* Original CultureQuest content */}
       <Hero />
       
       {dashboard && (
