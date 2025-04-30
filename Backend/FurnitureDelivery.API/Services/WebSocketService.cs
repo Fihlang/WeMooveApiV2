@@ -1,315 +1,217 @@
 using System.Collections.Concurrent;
-using FurnitureDelivery.API.Data;
-using FurnitureDelivery.API.DTOs;
-using Microsoft.EntityFrameworkCore;
 using System.Net.WebSockets;
 using System.Text;
 using System.Text.Json;
+using FurnitureDelivery.API.Data;
+using FurnitureDelivery.API.DTOs;
 
 namespace FurnitureDelivery.API.Services
 {
     public class WebSocketService : IWebSocketService
     {
+        private readonly ConcurrentDictionary<string, WebSocket> _connections;
+        private readonly ConcurrentDictionary<int, HashSet<string>> _userConnections;
+        private readonly ConcurrentDictionary<int, HashSet<string>> _deliveryConnections;
+        private readonly ConcurrentDictionary<string, int> _connectionToUser;
+        private readonly ILogger<WebSocketService> _logger;
         private readonly ApplicationDbContext _dbContext;
-        private readonly ConcurrentDictionary<string, WebSocketConnection> _connections = new();
-        private readonly ConcurrentDictionary<int, HashSet<string>> _userConnections = new();
-        private readonly ConcurrentDictionary<int, HashSet<string>> _deliveryConnections = new();
-        private readonly ConcurrentDictionary<string, HashSet<string>> _driverConnections = new();
 
-        public WebSocketService(ApplicationDbContext dbContext)
+        public WebSocketService(ILogger<WebSocketService> logger, ApplicationDbContext dbContext)
         {
+            _connections = new ConcurrentDictionary<string, WebSocket>();
+            _userConnections = new ConcurrentDictionary<int, HashSet<string>>();
+            _deliveryConnections = new ConcurrentDictionary<int, HashSet<string>>();
+            _connectionToUser = new ConcurrentDictionary<string, int>();
+            _logger = logger;
             _dbContext = dbContext;
-            _driverConnections["drivers"] = new HashSet<string>();
         }
 
-        public async Task SendToUser(int userId, WebSocketMessage message)
+        public void AddConnection(string connectionId, WebSocket webSocket)
         {
-            if (_userConnections.TryGetValue(userId, out var connectionIds))
+            _connections.TryAdd(connectionId, webSocket);
+            _logger.LogInformation($"WebSocket connection added: {connectionId}");
+        }
+
+        public async Task RemoveConnection(string connectionId)
+        {
+            if (_connections.TryRemove(connectionId, out _))
             {
-                foreach (var connectionId in connectionIds)
+                _logger.LogInformation($"WebSocket connection removed: {connectionId}");
+                
+                // Remove user association
+                if (_connectionToUser.TryRemove(connectionId, out var userId))
                 {
-                    if (_connections.TryGetValue(connectionId, out var connection) && 
-                        connection.Socket.State == WebSocketState.Open)
+                    if (_userConnections.TryGetValue(userId, out var userConnections))
                     {
-                        await SendMessageAsync(connection.Socket, message);
+                        userConnections.Remove(connectionId);
+                        if (userConnections.Count == 0)
+                        {
+                            _userConnections.TryRemove(userId, out _);
+                        }
+                    }
+                }
+                
+                // Remove from all delivery associations
+                foreach (var delivery in _deliveryConnections)
+                {
+                    delivery.Value.Remove(connectionId);
+                    if (delivery.Value.Count == 0)
+                    {
+                        _deliveryConnections.TryRemove(delivery.Key, out _);
                     }
                 }
             }
         }
 
-        public async Task SendToDelivery(int deliveryId, WebSocketMessage message)
+        public void AssociateUserWithConnection(int userId, string connectionId)
         {
-            if (_deliveryConnections.TryGetValue(deliveryId, out var connectionIds))
-            {
-                foreach (var connectionId in connectionIds)
-                {
-                    if (_connections.TryGetValue(connectionId, out var connection) && 
-                        connection.Socket.State == WebSocketState.Open)
-                    {
-                        await SendMessageAsync(connection.Socket, message);
-                    }
-                }
-            }
-        }
-
-        public async Task BroadcastToDrivers(WebSocketMessage message)
-        {
-            if (_driverConnections.TryGetValue("drivers", out var connectionIds))
-            {
-                foreach (var connectionId in connectionIds)
-                {
-                    if (_connections.TryGetValue(connectionId, out var connection) && 
-                        connection.Socket.State == WebSocketState.Open &&
-                        connection.UserType == "driver")
-                    {
-                        await SendMessageAsync(connection.Socket, message);
-                    }
-                }
-            }
-        }
-
-        public async Task BroadcastLocationUpdate(int driverId, double latitude, double longitude)
-        {
-            // Get all active deliveries for driver
-            var driver = await _dbContext.Drivers
-                .Include(d => d.User)
-                .FirstOrDefaultAsync(d => d.Id == driverId);
-
-            if (driver == null)
-            {
-                return;
-            }
-
-            var activeDeliveries = await _dbContext.Deliveries
-                .Where(d => d.DriverId == driverId && 
-                       (d.Status == "assigned" || d.Status == "in_transit"))
-                .ToListAsync();
-
-            // Location update message
-            var locationMessage = new WebSocketMessage
-            {
-                Type = "location_update",
-                Data = new
-                {
-                    DriverId = driverId,
-                    UserId = driver.UserId,
-                    DriverName = $"{driver.User.FirstName} {driver.User.LastName}",
-                    Latitude = latitude,
-                    Longitude = longitude,
-                    Timestamp = DateTime.UtcNow
-                }
-            };
-
-            // Broadcast to each active delivery
-            foreach (var delivery in activeDeliveries)
-            {
-                await SendToDelivery(delivery.Id, locationMessage);
-            }
-        }
-
-        public async Task BroadcastDeliveryStatusUpdate(int deliveryId, string status)
-        {
-            var delivery = await _dbContext.Deliveries
-                .Include(d => d.Customer)
-                .Include(d => d.Driver)
-                .ThenInclude(d => d.User)
-                .FirstOrDefaultAsync(d => d.Id == deliveryId);
-
-            if (delivery == null)
-            {
-                return;
-            }
-
-            var statusMessage = new WebSocketMessage
-            {
-                Type = "status_update",
-                Data = new
-                {
-                    DeliveryId = deliveryId,
-                    Status = status,
-                    PreviousStatus = delivery.Status,
-                    UpdatedAt = DateTime.UtcNow
-                }
-            };
-
-            await SendToDelivery(deliveryId, statusMessage);
-        }
-
-        public async Task RegisterConnection(string connectionId, int userId, string userType)
-        {
-            if (_connections.TryGetValue(connectionId, out var connection))
-            {
-                connection.UserId = userId;
-                connection.UserType = userType;
-            }
-
+            _connectionToUser.TryAdd(connectionId, userId);
+            
             _userConnections.AddOrUpdate(
                 userId,
                 new HashSet<string> { connectionId },
-                (_, existingIds) =>
+                (_, connections) =>
                 {
-                    lock (existingIds)
-                    {
-                        existingIds.Add(connectionId);
-                        return existingIds;
-                    }
+                    connections.Add(connectionId);
+                    return connections;
                 });
-
-            // If driver, add to driver connections
-            if (userType == "driver")
-            {
-                _driverConnections.AddOrUpdate(
-                    "drivers",
-                    new HashSet<string> { connectionId },
-                    (_, existingIds) =>
-                    {
-                        lock (existingIds)
-                        {
-                            existingIds.Add(connectionId);
-                            return existingIds;
-                        }
-                    });
-            }
             
-            await Task.CompletedTask;
+            _logger.LogInformation($"User {userId} associated with connection {connectionId}");
         }
 
-        public Task RemoveConnection(string connectionId)
+        public void AssociateDeliveryWithConnection(int deliveryId, string connectionId)
         {
-            if (_connections.TryRemove(connectionId, out var connection))
-            {
-                // Remove from user connections
-                if (connection.UserId.HasValue && 
-                    _userConnections.TryGetValue(connection.UserId.Value, out var userConnections))
-                {
-                    lock (userConnections)
-                    {
-                        userConnections.Remove(connectionId);
-                        
-                        // If no more connections for this user, remove the entry
-                        if (userConnections.Count == 0)
-                        {
-                            _userConnections.TryRemove(connection.UserId.Value, out _);
-                        }
-                    }
-                }
-
-                // Remove from driver connections
-                if (connection.UserType == "driver" && 
-                    _driverConnections.TryGetValue("drivers", out var driverConnections))
-                {
-                    lock (driverConnections)
-                    {
-                        driverConnections.Remove(connectionId);
-                    }
-                }
-
-                // Remove from delivery connections
-                foreach (var deliveryId in connection.DeliveryIds)
-                {
-                    if (_deliveryConnections.TryGetValue(deliveryId, out var deliveryConnections))
-                    {
-                        lock (deliveryConnections)
-                        {
-                            deliveryConnections.Remove(connectionId);
-                            
-                            // If no more connections for this delivery, remove the entry
-                            if (deliveryConnections.Count == 0)
-                            {
-                                _deliveryConnections.TryRemove(deliveryId, out _);
-                            }
-                        }
-                    }
-                }
-            }
-
-            return Task.CompletedTask;
-        }
-
-        public Task JoinDelivery(string connectionId, int deliveryId)
-        {
-            if (_connections.TryGetValue(connectionId, out var connection))
-            {
-                connection.DeliveryIds.Add(deliveryId);
-            }
-
             _deliveryConnections.AddOrUpdate(
                 deliveryId,
                 new HashSet<string> { connectionId },
-                (_, existingIds) =>
+                (_, connections) =>
                 {
-                    lock (existingIds)
-                    {
-                        existingIds.Add(connectionId);
-                        return existingIds;
-                    }
+                    connections.Add(connectionId);
+                    return connections;
                 });
-
-            return Task.CompletedTask;
+            
+            _logger.LogInformation($"Delivery {deliveryId} associated with connection {connectionId}");
         }
 
-        public Task LeaveDelivery(string connectionId, int deliveryId)
+        public List<string> GetConnectionsForUser(int userId)
         {
-            if (_connections.TryGetValue(connectionId, out var connection))
+            if (_userConnections.TryGetValue(userId, out var connections))
             {
-                connection.DeliveryIds.Remove(deliveryId);
+                return connections.ToList();
             }
+            
+            return new List<string>();
+        }
 
-            if (_deliveryConnections.TryGetValue(deliveryId, out var deliveryConnections))
+        public List<string> GetConnectionsForDelivery(int deliveryId)
+        {
+            if (_deliveryConnections.TryGetValue(deliveryId, out var connections))
             {
-                lock (deliveryConnections)
+                return connections.ToList();
+            }
+            
+            return new List<string>();
+        }
+
+        public async Task SendToUser(int userId, object message)
+        {
+            var connections = GetConnectionsForUser(userId);
+            foreach (var connectionId in connections)
+            {
+                await SendToConnection(connectionId, message);
+            }
+        }
+
+        public async Task SendToDelivery(int deliveryId, object message)
+        {
+            var connections = GetConnectionsForDelivery(deliveryId);
+            foreach (var connectionId in connections)
+            {
+                await SendToConnection(connectionId, message);
+            }
+        }
+
+        public async Task SendToDrivers(object message)
+        {
+            // Get all driver user IDs
+            var driverUserIds = _dbContext.Drivers
+                .Select(d => d.UserId)
+                .ToList();
+            
+            foreach (var userId in driverUserIds)
+            {
+                await SendToUser(userId, message);
+            }
+        }
+
+        public async Task SendToAll(object message)
+        {
+            var wsMessage = new WebSocketMessage
+            {
+                Type = "broadcast",
+                Data = message
+            };
+            
+            var messageBytes = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(wsMessage));
+            var sendBuffer = new ArraySegment<byte>(messageBytes);
+            
+            var connectionsCopy = _connections.ToArray();
+            foreach (var connection in connectionsCopy)
+            {
+                try
                 {
-                    deliveryConnections.Remove(connectionId);
-                    
-                    // If no more connections for this delivery, remove the entry
-                    if (deliveryConnections.Count == 0)
+                    if (connection.Value.State == WebSocketState.Open)
                     {
-                        _deliveryConnections.TryRemove(deliveryId, out _);
+                        await connection.Value.SendAsync(
+                            sendBuffer,
+                            WebSocketMessageType.Text,
+                            true,
+                            CancellationToken.None);
                     }
                 }
-            }
-
-            return Task.CompletedTask;
-        }
-
-        public void AddConnection(string connectionId, WebSocket socket)
-        {
-            _connections[connectionId] = new WebSocketConnection
-            {
-                Socket = socket,
-                ConnectionId = connectionId
-            };
-        }
-
-        private static async Task SendMessageAsync(WebSocket socket, WebSocketMessage message)
-        {
-            if (socket.State != WebSocketState.Open)
-                return;
-
-            try
-            {
-                var json = JsonSerializer.Serialize(message);
-                var bytes = Encoding.UTF8.GetBytes(json);
-                await socket.SendAsync(
-                    new ArraySegment<byte>(bytes),
-                    WebSocketMessageType.Text,
-                    true,
-                    CancellationToken.None);
-            }
-            catch (Exception)
-            {
-                // Log the exception but don't rethrow - we don't want to crash the service
-                // In a production app, you'd log this properly
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, $"Error sending message to connection {connection.Key}");
+                    await RemoveConnection(connection.Key);
+                }
             }
         }
 
-        private class WebSocketConnection
+        public async Task SendToConnection(string connectionId, object message)
         {
-            public WebSocket Socket { get; set; } = null!;
-            public string ConnectionId { get; set; } = string.Empty;
-            public int? UserId { get; set; }
-            public string UserType { get; set; } = string.Empty;
-            public HashSet<int> DeliveryIds { get; } = new HashSet<int>();
+            if (_connections.TryGetValue(connectionId, out var webSocket))
+            {
+                try
+                {
+                    if (webSocket.State == WebSocketState.Open)
+                    {
+                        var wsMessage = new WebSocketMessage
+                        {
+                            Type = message.GetType().Name.ToLower(),
+                            Data = message
+                        };
+                        
+                        var messageBytes = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(wsMessage));
+                        var sendBuffer = new ArraySegment<byte>(messageBytes);
+                        
+                        await webSocket.SendAsync(
+                            sendBuffer,
+                            WebSocketMessageType.Text,
+                            true,
+                            CancellationToken.None);
+                    }
+                    else
+                    {
+                        _logger.LogWarning($"WebSocket connection {connectionId} is not open");
+                        await RemoveConnection(connectionId);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, $"Error sending message to connection {connectionId}");
+                    await RemoveConnection(connectionId);
+                }
+            }
         }
     }
 }

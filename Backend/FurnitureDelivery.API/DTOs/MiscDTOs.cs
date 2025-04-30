@@ -1,111 +1,196 @@
+using System.Text.Json.Serialization;
+
 namespace FurnitureDelivery.API.DTOs
 {
-    // WebSocket Message
+    // WebSocket Message container
     public class WebSocketMessage
     {
-        public string Type { get; set; } = string.Empty;
-        public object? Data { get; set; }
+        [JsonPropertyName("type")]
+        public string Type { get; set; } = "";
+        
+        [JsonPropertyName("data")]
+        public object Data { get; set; } = null!;
     }
-
-    // Dashboard Summary DTO for Customers
-    public class CustomerDashboardDTO
+    
+    // Notification DTO
+    public class NotificationDTO
     {
-        public int TotalDeliveries { get; set; }
-        public int ActiveDeliveries { get; set; }
-        public int CompletedDeliveries { get; set; }
-        public List<DeliveryDTO> RecentDeliveries { get; set; } = new List<DeliveryDTO>();
-        public List<DeliveryDTO> UpcomingDeliveries { get; set; } = new List<DeliveryDTO>();
-        public List<NotificationDTO> Notifications { get; set; } = new List<NotificationDTO>();
-    }
-
-    // Dashboard Summary DTO for Drivers
-    public class DriverDashboardDTO
-    {
-        public bool IsAvailable { get; set; }
-        public string VerificationStatus { get; set; } = string.Empty;
-        public double? Rating { get; set; }
-        public int TotalDeliveries { get; set; }
-        public int ActiveDeliveries { get; set; }
-        public int CompletedDeliveries { get; set; }
-        public double TotalEarnings { get; set; }
-        public List<DeliveryDTO> CurrentDeliveries { get; set; } = new List<DeliveryDTO>();
-        public List<DeliveryDTO> UpcomingDeliveries { get; set; } = new List<DeliveryDTO>();
-        public List<ReviewDTO> RecentReviews { get; set; } = new List<ReviewDTO>();
-        public List<NotificationDTO> Notifications { get; set; } = new List<NotificationDTO>();
-    }
-
-    // Dashboard Summary DTO for Admins
-    public class AdminDashboardDTO
-    {
-        public int TotalUsers { get; set; }
-        public int TotalCustomers { get; set; }
-        public int TotalDrivers { get; set; }
-        public int TotalDeliveries { get; set; }
-        public int PendingDriverVerifications { get; set; }
-        public int ActiveDeliveries { get; set; }
-        public double TotalRevenue { get; set; }
-        public List<DeliveryDTO> RecentDeliveries { get; set; } = new List<DeliveryDTO>();
-        public List<DriverDTO> PendingDrivers { get; set; } = new List<DriverDTO>();
-    }
-
-    // Location Update DTO
-    public class LocationUpdateDTO
-    {
-        public int DriverId { get; set; }
+        [JsonPropertyName("id")]
+        public int Id { get; set; }
+        
+        [JsonPropertyName("createdAt")]
+        public DateTime CreatedAt { get; set; }
+        
+        [JsonPropertyName("userId")]
         public int UserId { get; set; }
-        public string DriverName { get; set; } = string.Empty;
-        public double Latitude { get; set; }
-        public double Longitude { get; set; }
-        public DateTime Timestamp { get; set; }
+        
+        [JsonPropertyName("type")]
+        public string Type { get; set; } = "";
+        
+        [JsonPropertyName("title")]
+        public string Title { get; set; } = "";
+        
+        [JsonPropertyName("message")]
+        public string Message { get; set; } = "";
+        
+        [JsonPropertyName("isRead")]
+        public bool IsRead { get; set; }
+        
+        [JsonPropertyName("relatedEntityType")]
+        public string? RelatedEntityType { get; set; }
+        
+        [JsonPropertyName("relatedEntityId")]
+        public int? RelatedEntityId { get; set; }
     }
-
+    
     // Status Update DTO
     public class StatusUpdateDTO
     {
+        [JsonPropertyName("deliveryId")]
         public int DeliveryId { get; set; }
-        public string Status { get; set; } = string.Empty;
-        public string PreviousStatus { get; set; } = string.Empty;
+        
+        [JsonPropertyName("status")]
+        public string Status { get; set; } = "";
+        
+        [JsonPropertyName("previousStatus")]
+        public string? PreviousStatus { get; set; }
+        
+        [JsonPropertyName("updatedAt")]
         public DateTime UpdatedAt { get; set; }
     }
-
-    // Statistics DTO
-    public class StatisticsDTO
+    
+    // Message DTO
+    public class MessageDTO
     {
-        public int TotalDeliveries { get; set; }
-        public int CompletedDeliveries { get; set; }
-        public int CancelledDeliveries { get; set; }
-        public double AverageRating { get; set; }
-        public double TotalRevenue { get; set; }
-        public Dictionary<string, int> DeliveriesByStatus { get; set; } = new Dictionary<string, int>();
-        public Dictionary<string, int> DeliveriesByMonth { get; set; } = new Dictionary<string, int>();
+        [JsonPropertyName("id")]
+        public int Id { get; set; }
+        
+        [JsonPropertyName("createdAt")]
+        public DateTime CreatedAt { get; set; }
+        
+        [JsonPropertyName("deliveryId")]
+        public int DeliveryId { get; set; }
+        
+        [JsonPropertyName("senderId")]
+        public int SenderId { get; set; }
+        
+        [JsonPropertyName("recipientId")]
+        public int RecipientId { get; set; }
+        
+        [JsonPropertyName("content")]
+        public string Content { get; set; } = "";
+        
+        [JsonPropertyName("isRead")]
+        public bool IsRead { get; set; }
     }
-
-    // Rate Calculation Request
-    public class RateCalculationRequest
+    
+    // Location Update DTO
+    public class LocationUpdateDTO
     {
-        public string PickupAddress { get; set; } = string.Empty;
-        public string DestinationAddress { get; set; } = string.Empty;
-        public List<RateCalculationItem> Items { get; set; } = new List<RateCalculationItem>();
+        [JsonPropertyName("driverId")]
+        public int DriverId { get; set; }
+        
+        [JsonPropertyName("deliveryId")]
+        public int? DeliveryId { get; set; }
+        
+        [JsonPropertyName("latitude")]
+        public double Latitude { get; set; }
+        
+        [JsonPropertyName("longitude")]
+        public double Longitude { get; set; }
+        
+        [JsonPropertyName("updatedAt")]
+        public DateTime UpdatedAt { get; set; }
+        
+        [JsonPropertyName("heading")]
+        public double? Heading { get; set; }
+        
+        [JsonPropertyName("speed")]
+        public double? Speed { get; set; }
+        
+        [JsonPropertyName("estimatedArrival")]
+        public DateTime? EstimatedArrival { get; set; }
     }
-
-    // Rate Calculation Item
-    public class RateCalculationItem
+    
+    // Driver Availability Update DTO
+    public class DriverAvailabilityDTO
     {
-        public int FurnitureId { get; set; }
-        public int Quantity { get; set; }
+        [JsonPropertyName("driverId")]
+        public int DriverId { get; set; }
+        
+        [JsonPropertyName("userId")]
+        public int UserId { get; set; }
+        
+        [JsonPropertyName("isAvailable")]
+        public bool IsAvailable { get; set; }
+        
+        [JsonPropertyName("updatedAt")]
+        public DateTime UpdatedAt { get; set; }
+    }
+    
+    // Delivery Assignment DTO
+    public class DeliveryAssignmentDTO
+    {
+        [JsonPropertyName("deliveryId")]
+        public int DeliveryId { get; set; }
+        
+        [JsonPropertyName("driverId")]
+        public int DriverId { get; set; }
+        
+        [JsonPropertyName("assignedAt")]
+        public DateTime AssignedAt { get; set; }
+        
+        [JsonPropertyName("estimatedPickupTime")]
+        public DateTime? EstimatedPickupTime { get; set; }
+        
+        [JsonPropertyName("estimatedDeliveryTime")]
+        public DateTime? EstimatedDeliveryTime { get; set; }
+    }
+    
+    // Delivery Request DTO
+    public class DeliveryRequestDTO
+    {
+        [JsonPropertyName("deliveryId")]
+        public int DeliveryId { get; set; }
+        
+        [JsonPropertyName("customerId")]
+        public int CustomerId { get; set; }
+        
+        [JsonPropertyName("pickupAddress")]
+        public string PickupAddress { get; set; } = "";
+        
+        [JsonPropertyName("destinationAddress")]
+        public string DestinationAddress { get; set; } = "";
+        
+        [JsonPropertyName("scheduledDate")]
+        public DateTime ScheduledDate { get; set; }
+        
+        [JsonPropertyName("totalPrice")]
+        public decimal TotalPrice { get; set; }
+        
+        [JsonPropertyName("itemCount")]
+        public int ItemCount { get; set; }
+        
+        [JsonPropertyName("specialHandling")]
         public bool SpecialHandling { get; set; }
+        
+        [JsonPropertyName("distance")]
+        public double? Distance { get; set; }
+        
+        [JsonPropertyName("createdAt")]
+        public DateTime CreatedAt { get; set; }
     }
-
-    // Rate Calculation Response
-    public class RateCalculationResponse
+    
+    // Error DTO
+    public class ErrorDTO
     {
-        public double BaseRate { get; set; }
-        public double DistanceRate { get; set; }
-        public double WeightRate { get; set; }
-        public double SpecialHandlingRate { get; set; }
-        public double TotalRate { get; set; }
-        public double Distance { get; set; }
-        public double Duration { get; set; }
-        public string Currency { get; set; } = "USD";
+        [JsonPropertyName("errorCode")]
+        public string ErrorCode { get; set; } = "";
+        
+        [JsonPropertyName("message")]
+        public string Message { get; set; } = "";
+        
+        [JsonPropertyName("timestamp")]
+        public DateTime Timestamp { get; set; } = DateTime.UtcNow;
     }
 }

@@ -1,134 +1,186 @@
+using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
 
 namespace FurnitureDelivery.API.DTOs
 {
-    // Generic API Response
-    public class ApiResponse<T>
+    // Register Request DTO
+    public class RegisterRequestDTO
     {
-        public bool Success { get; set; }
-        public string Message { get; set; } = string.Empty;
-        public T? Data { get; set; }
-
-        public static ApiResponse<T> SuccessResponse(T data, string message = "Request successful")
-        {
-            return new ApiResponse<T>
-            {
-                Success = true,
-                Message = message,
-                Data = data
-            };
-        }
-
-        public static ApiResponse<T> ErrorResponse(string message)
-        {
-            return new ApiResponse<T>
-            {
-                Success = false,
-                Message = message,
-                Data = default
-            };
-        }
-    }
-
-    // User DTO
-    public class UserDTO
-    {
-        public int Id { get; set; }
-        public string Email { get; set; } = string.Empty;
-        public string FirstName { get; set; } = string.Empty;
-        public string LastName { get; set; } = string.Empty;
-        public string PhoneNumber { get; set; } = string.Empty;
+        [Required]
+        [EmailAddress]
+        [JsonPropertyName("email")]
+        public string Email { get; set; } = "";
+        
+        [Required]
+        [MinLength(6)]
+        [JsonPropertyName("password")]
+        public string Password { get; set; } = "";
+        
+        [Required]
+        [Compare("Password")]
+        [JsonPropertyName("confirmPassword")]
+        public string ConfirmPassword { get; set; } = "";
+        
+        [Required]
+        [JsonPropertyName("firstName")]
+        public string FirstName { get; set; } = "";
+        
+        [Required]
+        [JsonPropertyName("lastName")]
+        public string LastName { get; set; } = "";
+        
+        [Required]
+        [Phone]
+        [JsonPropertyName("phoneNumber")]
+        public string PhoneNumber { get; set; } = "";
+        
+        [JsonPropertyName("address")]
         public string? Address { get; set; }
+        
+        [JsonPropertyName("avatarUrl")]
         public string? AvatarUrl { get; set; }
+        
+        [Required]
+        [JsonPropertyName("userType")]
+        public string UserType { get; set; } = "Customer"; // Customer or Driver
+    }
+    
+    // Register Driver Request DTO
+    public class RegisterDriverRequestDTO : RegisterRequestDTO
+    {
+        [Required]
+        [JsonPropertyName("vehicleType")]
+        public string VehicleType { get; set; } = "";
+        
+        [Required]
+        [JsonPropertyName("licensePlate")]
+        public string LicensePlate { get; set; } = "";
+        
+        [Required]
+        [JsonPropertyName("capacity")]
+        public string Capacity { get; set; } = "";
+    }
+    
+    // Login Request DTO
+    public class LoginRequestDTO
+    {
+        [Required]
+        [EmailAddress]
+        [JsonPropertyName("email")]
+        public string Email { get; set; } = "";
+        
+        [Required]
+        [JsonPropertyName("password")]
+        public string Password { get; set; } = "";
+    }
+    
+    // Auth Response DTO
+    public class AuthResponseDTO
+    {
+        [JsonPropertyName("id")]
+        public int Id { get; set; }
+        
+        [JsonPropertyName("email")]
+        public string Email { get; set; } = "";
+        
+        [JsonPropertyName("firstName")]
+        public string FirstName { get; set; } = "";
+        
+        [JsonPropertyName("lastName")]
+        public string LastName { get; set; } = "";
+        
+        [JsonPropertyName("phoneNumber")]
+        public string PhoneNumber { get; set; } = "";
+        
+        [JsonPropertyName("address")]
+        public string? Address { get; set; }
+        
+        [JsonPropertyName("avatarUrl")]
+        public string? AvatarUrl { get; set; }
+        
+        [JsonPropertyName("userType")]
+        public string UserType { get; set; } = "";
+        
+        [JsonPropertyName("isVerified")]
         public bool IsVerified { get; set; }
-        public string UserType { get; set; } = string.Empty;
+        
+        [JsonPropertyName("token")]
+        public string Token { get; set; } = "";
+        
+        [JsonPropertyName("driverId")]
+        public int? DriverId { get; set; }
+        
+        [JsonPropertyName("expiresAt")]
+        public DateTime ExpiresAt { get; set; }
     }
-
-    // Driver DTO
-    public class DriverDTO
+    
+    // Password Reset Request DTO
+    public class PasswordResetRequestDTO
     {
-        public int Id { get; set; }
-        public int UserId { get; set; }
-        public string VehicleType { get; set; } = string.Empty;
-        public string LicensePlate { get; set; } = string.Empty;
-        public string Capacity { get; set; } = string.Empty;
-        public double? Rating { get; set; }
-        public bool IsAvailable { get; set; }
-        public double? CurrentLatitude { get; set; }
-        public double? CurrentLongitude { get; set; }
-        public string VerificationStatus { get; set; } = string.Empty;
+        [Required]
+        [EmailAddress]
+        [JsonPropertyName("email")]
+        public string Email { get; set; } = "";
     }
-
-    // Auth Response
-    public class AuthResponse
+    
+    // Password Reset Confirm DTO
+    public class PasswordResetConfirmDTO
     {
-        public string Token { get; set; } = string.Empty;
-        public UserDTO User { get; set; } = null!;
-        public DriverDTO? Driver { get; set; }
+        [Required]
+        [EmailAddress]
+        [JsonPropertyName("email")]
+        public string Email { get; set; } = "";
+        
+        [Required]
+        [JsonPropertyName("resetToken")]
+        public string ResetToken { get; set; } = "";
+        
+        [Required]
+        [MinLength(6)]
+        [JsonPropertyName("newPassword")]
+        public string NewPassword { get; set; } = "";
+        
+        [Required]
+        [Compare("NewPassword")]
+        [JsonPropertyName("confirmPassword")]
+        public string ConfirmPassword { get; set; } = "";
     }
-
-    // Login Request
-    public class LoginRequest
+    
+    // Change Password DTO
+    public class ChangePasswordDTO
     {
-        public string Email { get; set; } = string.Empty;
-        public string Password { get; set; } = string.Empty;
+        [Required]
+        [JsonPropertyName("currentPassword")]
+        public string CurrentPassword { get; set; } = "";
+        
+        [Required]
+        [MinLength(6)]
+        [JsonPropertyName("newPassword")]
+        public string NewPassword { get; set; } = "";
+        
+        [Required]
+        [Compare("NewPassword")]
+        [JsonPropertyName("confirmPassword")]
+        public string ConfirmPassword { get; set; } = "";
     }
-
-    // Register Request
-    public class RegisterRequest
+    
+    // Update Profile DTO
+    public class UpdateProfileDTO
     {
-        public string Email { get; set; } = string.Empty;
-        public string Password { get; set; } = string.Empty;
-        public string FirstName { get; set; } = string.Empty;
-        public string LastName { get; set; } = string.Empty;
-        public string PhoneNumber { get; set; } = string.Empty;
-        public string? Address { get; set; }
-    }
-
-    // Register Driver Request
-    public class RegisterDriverRequest : RegisterRequest
-    {
-        public string VehicleType { get; set; } = string.Empty;
-        public string LicensePlate { get; set; } = string.Empty;
-        public string Capacity { get; set; } = string.Empty;
-        public object? Documents { get; set; }
-    }
-
-    // Validate Token Request
-    public class ValidateTokenRequest
-    {
-        public string Token { get; set; } = string.Empty;
-    }
-
-    // Update Profile Request
-    public class UpdateProfileRequest
-    {
+        [JsonPropertyName("firstName")]
         public string? FirstName { get; set; }
+        
+        [JsonPropertyName("lastName")]
         public string? LastName { get; set; }
+        
+        [Phone]
+        [JsonPropertyName("phoneNumber")]
         public string? PhoneNumber { get; set; }
+        
+        [JsonPropertyName("address")]
         public string? Address { get; set; }
+        
+        [JsonPropertyName("avatarUrl")]
         public string? AvatarUrl { get; set; }
-    }
-
-    // Change Password Request
-    public class ChangePasswordRequest
-    {
-        public string CurrentPassword { get; set; } = string.Empty;
-        public string NewPassword { get; set; } = string.Empty;
-    }
-
-    // Driver Nearby Request
-    public class DriverNearbyRequest
-    {
-        public double Latitude { get; set; }
-        public double Longitude { get; set; }
-        public double Radius { get; set; } = 10; // Default 10 km
-    }
-
-    // Update Driver Location Request
-    public class UpdateDriverLocationRequest
-    {
-        public double Latitude { get; set; }
-        public double Longitude { get; set; }
     }
 }
