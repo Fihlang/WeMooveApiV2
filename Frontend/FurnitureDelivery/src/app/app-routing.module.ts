@@ -1,25 +1,47 @@
 import { NgModule } from '@angular/core';
-import { RouterModule, Routes } from '@angular/router';
-import { CustomerDashboardComponent } from './customer/dashboard/dashboard.component';
-import { DeliveryTrackingComponent } from './customer/delivery-tracking/delivery-tracking.component';
-
-// Route guards and resolvers would be imported here
+import { Routes, RouterModule } from '@angular/router';
+import { LoginComponent } from './auth/login/login.component';
+import { RegisterComponent } from './auth/register/register.component';
+import { AuthGuard } from './core/guards/auth.guard';
+import { RoleGuard } from './core/guards/role.guard';
 
 const routes: Routes = [
-  { path: '', redirectTo: '/customer/dashboard', pathMatch: 'full' },
+  // Public routes (no auth required)
+  { path: '', redirectTo: '/auth/login', pathMatch: 'full' },
   
-  // Customer routes
-  { path: 'customer/dashboard', component: CustomerDashboardComponent },
-  { path: 'customer/track/:id', component: DeliveryTrackingComponent },
+  // Auth routes
+  { 
+    path: 'auth', 
+    children: [
+      { path: 'login', component: LoginComponent },
+      { path: 'register', component: RegisterComponent }
+    ] 
+  },
   
-  // Auth routes would go here
+  // Customer routes (requires customer role)
+  { 
+    path: 'customer', 
+    canActivate: [AuthGuard, RoleGuard],
+    data: { requiredRole: 'customer' },
+    children: [
+      { path: 'dashboard', loadChildren: () => import('./customer/customer.module').then(m => m.CustomerModule) },
+      // Additional customer routes will be added here
+    ] 
+  },
   
-  // Driver routes would go here
-  
-  // Public pages would go here
+  // Driver routes (requires driver role)
+  { 
+    path: 'driver', 
+    canActivate: [AuthGuard, RoleGuard],
+    data: { requiredRole: 'driver' },
+    children: [
+      { path: 'dashboard', loadChildren: () => import('./driver/driver.module').then(m => m.DriverModule) },
+      // Additional driver routes will be added here
+    ] 
+  },
   
   // Wildcard route for 404
-  { path: '**', redirectTo: '/customer/dashboard' }
+  { path: '**', redirectTo: '/auth/login' }
 ];
 
 @NgModule({

@@ -1,114 +1,153 @@
 import { Component, OnInit } from '@angular/core';
-import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
+import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
-import { CommonModule } from '@angular/common';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatInputModule } from '@angular/material/input';
-import { MatButtonModule } from '@angular/material/button';
-import { MatCardModule } from '@angular/material/card';
-import { MatSelectModule } from '@angular/material/select';
-import { MatCheckboxModule } from '@angular/material/checkbox';
-import { MatSnackBar } from '@angular/material/snack-bar';
 
 @Component({
   selector: 'app-register',
   templateUrl: './register.component.html',
-  styleUrls: ['./register.component.scss'],
-  standalone: true,
-  imports: [
-    CommonModule,
-    ReactiveFormsModule,
-    MatFormFieldModule,
-    MatInputModule,
-    MatButtonModule,
-    MatCardModule,
-    MatSelectModule,
-    MatCheckboxModule
-  ]
+  styleUrls: ['./register.component.css']
 })
 export class RegisterComponent implements OnInit {
-  registerForm!: FormGroup;
-  isSubmitting = false;
-  registerError = '';
+  registerForm: FormGroup;
+  loading = false;
+  submitted = false;
+  error = '';
   userTypes = [
-    { value: 'customer', viewValue: 'Customer' },
-    { value: 'driver', viewValue: 'Driver' }
+    { value: 'customer', label: 'Customer' },
+    { value: 'driver', label: 'Driver' }
   ];
 
   constructor(
     private formBuilder: FormBuilder,
-    private authService: AuthService,
     private router: Router,
-    private snackBar: MatSnackBar
-  ) { }
-
-  ngOnInit(): void {
-    this.initForm();
-  }
-
-  initForm(): void {
+    private authService: AuthService
+  ) {
+    // Redirect to home if already logged in
+    if (this.authService.isAuthenticated) {
+      this.redirectBasedOnRole();
+    }
+    
+    // Initialize form
     this.registerForm = this.formBuilder.group({
-      firstName: ['', [Validators.required]],
-      lastName: ['', [Validators.required]],
+      firstName: ['', Validators.required],
+      lastName: ['', Validators.required],
       email: ['', [Validators.required, Validators.email]],
+      phoneNumber: ['', [Validators.required, Validators.pattern('^[0-9]{10}$')]],
+      address: [''],
       password: ['', [Validators.required, Validators.minLength(6)]],
-      confirmPassword: ['', [Validators.required]],
-      userType: ['customer', [Validators.required]],
-      phone: ['', [Validators.required, Validators.pattern(/^\+?[0-9]{10,15}$/)]],
-      termsAccepted: [false, [Validators.requiredTrue]]
-    }, { 
-      validators: this.passwordMatchValidator 
+      confirmPassword: ['', Validators.required],
+      userType: ['customer', Validators.required],
+      
+      // Driver-specific fields, conditionally validated
+      vehicleType: [''],
+      licensePlate: [''],
+      capacity: ['']
+    }, {
+      validator: this.passwordMatchValidator
     });
   }
 
-  passwordMatchValidator(form: FormGroup) {
-    const password = form.get('password')?.value;
-    const confirmPassword = form.get('confirmPassword')?.value;
-
-    if (password !== confirmPassword) {
-      form.get('confirmPassword')?.setErrors({ passwordMismatch: true });
-      return { passwordMismatch: true };
-    }
+  ngOnInit(): void {
+    // This is handled in the constructor
     
-    return null;
+    // Subscribe to userType changes to handle driver-specific field validation
+    this.registerForm.get('userType')?.valueChanges.subscribe(userType => {
+      this.updateDriverFieldValidators(userType);
+    });
   }
 
-  onSubmit(): void {
+  // Convenience getter for easy access to form fields
+  get f() { return this.registerForm.controls; }
+
+  onSubmit() {
+    this.submitted = true;
+
+    // Stop if form is invalid
     if (this.registerForm.invalid) {
       return;
     }
 
-    this.isSubmitting = true;
-    this.registerError = '';
+    this.loading = true;
+    this.error = '';
 
-    // Prepare data (remove confirmPassword and termsAccepted)
-    const registerData = { ...this.registerForm.value };
-    delete registerData.confirmPassword;
-    delete registerData.termsAccepted;
+    // Prepare data for registration
+    const registrationData: any = {
+      firstName: this.f['firstName'].value,
+      lastName: this.f['lastName'].value,
+      email: this.f['email'].value,
+      phoneNumber: this.f['phoneNumber'].value,
+      address: this.f['address'].value,
+      password: this.f['password'].value,
+      userType: this.f['userType'].value
+    };
 
-    this.authService.register(registerData).subscribe({
-      next: () => {
-        this.isSubmitting = false;
-        
-        this.snackBar.open('Registration successful! You can now log in.', 'Close', {
-          duration: 3000,
-          horizontalPosition: 'center',
-          verticalPosition: 'bottom'
-        });
-        
-        this.router.navigate(['/login']);
-      },
-      error: (error) => {
-        this.isSubmitting = false;
-        this.registerError = error.error?.message || 'Registration failed. Please try again.';
-        
-        this.snackBar.open(this.registerError, 'Close', {
-          duration: 3000,
-          horizontalPosition: 'center',
-          verticalPosition: 'bottom'
-        });
-      }
-    });
+    // Add driver-specific fields if user is a driver
+    if (this.f['userType'].value === 'driver') {
+      registrationData.driver = {
+        vehicleType: this.f['vehicleType'].value,
+        licensePlate: this.f['licensePlate'].value,
+        capacity: this.f['capacity'].value
+      };
+    }
+
+    this.authService.register(registrationData)
+      .subscribe({
+        next: () => {
+          // After successful registration, navigate to login
+          this.router.navigate(['/auth/login'], {
+            queryParams: { registered: 'true' }
+          });
+        },
+        error: err => {
+          this.error = err.message || 'Registration failed';
+          this.loading = false;
+        }
+      });
+  }
+
+  // Custom validator for password matching
+  passwordMatchValidator(formGroup: FormGroup) {
+    const password = formGroup.get('password')?.value;
+    const confirmPassword = formGroup.get('confirmPassword')?.value;
+
+    if (password !== confirmPassword) {
+      formGroup.get('confirmPassword')?.setErrors({ passwordMismatch: true });
+    } else {
+      return null;
+    }
+  }
+
+  // Update validation for driver-specific fields based on user type
+  private updateDriverFieldValidators(userType: string) {
+    const vehicleTypeControl = this.registerForm.get('vehicleType');
+    const licensePlateControl = this.registerForm.get('licensePlate');
+    const capacityControl = this.registerForm.get('capacity');
+
+    if (userType === 'driver') {
+      // Add validators for driver fields
+      vehicleTypeControl?.setValidators([Validators.required]);
+      licensePlateControl?.setValidators([Validators.required]);
+      capacityControl?.setValidators([Validators.required]);
+    } else {
+      // Clear validators for driver fields
+      vehicleTypeControl?.clearValidators();
+      licensePlateControl?.clearValidators();
+      capacityControl?.clearValidators();
+    }
+
+    // Update validation state
+    vehicleTypeControl?.updateValueAndValidity();
+    licensePlateControl?.updateValueAndValidity();
+    capacityControl?.updateValueAndValidity();
+  }
+
+  // Helper method to redirect based on user role
+  private redirectBasedOnRole() {
+    if (this.authService.isDriver) {
+      this.router.navigate(['/driver/dashboard']);
+    } else {
+      this.router.navigate(['/customer/dashboard']);
+    }
   }
 }

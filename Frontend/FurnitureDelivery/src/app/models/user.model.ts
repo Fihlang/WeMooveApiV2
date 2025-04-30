@@ -4,10 +4,11 @@ export interface User {
   firstName: string;
   lastName: string;
   phoneNumber: string;
-  address?: string;
-  avatarUrl?: string;
+  address: string | null;
+  avatarUrl: string | null;
+  userType: string; // 'customer' or 'driver'
   isVerified: boolean;
-  userType: string;
+  createdAt: Date;
 }
 
 export interface Driver {
@@ -16,52 +17,22 @@ export interface Driver {
   vehicleType: string;
   licensePlate: string;
   capacity: string;
-  rating?: number;
+  rating: number | null;
   isAvailable: boolean;
-  currentLatitude?: number;
-  currentLongitude?: number;
+  currentLatitude: number | null;
+  currentLongitude: number | null;
   verificationStatus: string;
+  documents: any;
 }
 
-export interface AuthResponse {
-  token: string;
+export interface DriverWithDetails extends Driver {
   user: User;
-  driver?: Driver;
-  expiresAt: Date;
 }
 
-export interface LoginRequest {
-  email: string;
-  password: string;
+export interface CustomerProfile extends User {
+  // Additional customer-specific fields can be added here
 }
 
-export interface RegisterRequest {
-  email: string;
-  password: string;
-  confirmPassword: string;
-  firstName: string;
-  lastName: string;
-  phoneNumber: string;
-  address?: string;
-  userType: string;
-}
-
-export interface RegisterDriverRequest extends RegisterRequest {
-  vehicleType: string;
-  licensePlate: string;
-  capacity: string;
-}
-
-export interface UpdateProfileRequest {
-  firstName?: string;
-  lastName?: string;
-  phoneNumber?: string;
-  address?: string;
-  avatarUrl?: string;
-}
-
-export interface ChangePasswordRequest {
-  currentPassword: string;
-  newPassword: string;
-  confirmPassword: string;
+export interface DriverProfile extends User {
+  driver: Driver;
 }

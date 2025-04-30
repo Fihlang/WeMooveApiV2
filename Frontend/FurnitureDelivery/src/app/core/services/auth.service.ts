@@ -1,225 +1,174 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, BehaviorSubject, throwError, of } from 'rxjs';
-import { catchError, tap, map } from 'rxjs/operators';
-import { 
-  User, 
-  AuthResponse, 
-  LoginRequest, 
-  RegisterRequest, 
-  RegisterDriverRequest, 
-  UpdateProfileRequest, 
-  ChangePasswordRequest 
-} from '../../models/user.model';
+import { BehaviorSubject, Observable, throwError } from 'rxjs';
+import { map, catchError, tap } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
+import { User } from '../../models/user.model';
+
+interface AuthResponse {
+  user: User;
+  token: string;
+}
+
+interface LoginRequest {
+  email: string;
+  password: string;
+}
 
 @Injectable({
   providedIn: 'root'
 })
 export class AuthService {
-  private currentUserSubject = new BehaviorSubject<User | null>(null);
-  public currentUser$ = this.currentUserSubject.asObservable();
-  private tokenExpirationTimer: any;
+  private apiUrl = `${environment.apiUrl}/auth`;
+  private currentUserSubject: BehaviorSubject<User | null>;
+  public currentUser: Observable<User | null>;
+  public authStatusChange = new BehaviorSubject<boolean>(false);
 
   constructor(private http: HttpClient) {
-    this.checkAuthStatus();
+    // Load user data from localStorage on service initialization
+    const storedData = localStorage.getItem('auth_data');
+    const userData = storedData ? JSON.parse(storedData) : null;
+    
+    this.currentUserSubject = new BehaviorSubject<User | null>(userData?.user || null);
+    this.currentUser = this.currentUserSubject.asObservable();
+    
+    // Emit initial auth status
+    this.authStatusChange.next(!!userData?.user);
   }
 
+  /**
+   * Get the current user value without subscribing to the observable
+   */
   public get currentUserValue(): User | null {
     return this.currentUserSubject.value;
   }
 
+  /**
+   * Check if user is authenticated
+   */
   public get isAuthenticated(): boolean {
-    return !!this.currentUserSubject.value;
+    return !!this.currentUserValue;
   }
 
+  /**
+   * Check if the current user is a driver
+   */
   public get isDriver(): boolean {
-    return this.currentUserSubject.value?.userType === 'driver';
+    return this.isAuthenticated && this.currentUserValue?.userType === 'driver';
   }
 
-  public get isCustomer(): boolean {
-    return this.currentUserSubject.value?.userType === 'customer';
-  }
-
-  login(request: LoginRequest): Observable<AuthResponse> {
-    return this.http.post<any>(`${environment.apiUrl}/auth/login`, request)
-      .pipe(
-        map(response => {
-          if (response && response.data) {
-            return this.handleAuthResponse(response.data);
-          }
-          throw new Error('Invalid response format');
-        }),
-        catchError(error => {
-          console.error('Login error', error);
-          return throwError(() => new Error(error.error?.message || 'Login failed'));
-        })
-      );
-  }
-
-  registerCustomer(request: RegisterRequest): Observable<AuthResponse> {
-    return this.http.post<any>(`${environment.apiUrl}/auth/register/customer`, request)
-      .pipe(
-        map(response => {
-          if (response && response.data) {
-            return this.handleAuthResponse(response.data);
-          }
-          throw new Error('Invalid response format');
-        }),
-        catchError(error => {
-          console.error('Registration error', error);
-          return throwError(() => new Error(error.error?.message || 'Registration failed'));
-        })
-      );
-  }
-
-  registerDriver(request: RegisterDriverRequest): Observable<AuthResponse> {
-    return this.http.post<any>(`${environment.apiUrl}/auth/register/driver`, request)
-      .pipe(
-        map(response => {
-          if (response && response.data) {
-            return this.handleAuthResponse(response.data);
-          }
-          throw new Error('Invalid response format');
-        }),
-        catchError(error => {
-          console.error('Driver registration error', error);
-          return throwError(() => new Error(error.error?.message || 'Driver registration failed'));
-        })
-      );
-  }
-
-  logout(): void {
-    localStorage.removeItem('auth_data');
-    this.currentUserSubject.next(null);
-    if (this.tokenExpirationTimer) {
-      clearTimeout(this.tokenExpirationTimer);
-    }
-    this.tokenExpirationTimer = null;
-  }
-
-  getProfile(): Observable<User> {
-    return this.http.get<any>(`${environment.apiUrl}/auth/profile`)
-      .pipe(
-        map(response => {
-          if (response && response.data) {
-            return response.data;
-          }
-          throw new Error('Invalid response format');
-        }),
-        catchError(error => {
-          console.error('Get profile error', error);
-          return throwError(() => new Error(error.error?.message || 'Failed to get profile'));
-        })
-      );
-  }
-
-  updateProfile(request: UpdateProfileRequest): Observable<User> {
-    return this.http.put<any>(`${environment.apiUrl}/auth/profile`, request)
-      .pipe(
-        map(response => {
-          if (response && response.data) {
-            const updatedUser = response.data;
-            // Update the current user in local storage and behavior subject
-            const authData = this.getAuthDataFromStorage();
-            if (authData) {
-              authData.user = updatedUser;
-              localStorage.setItem('auth_data', JSON.stringify(authData));
-              this.currentUserSubject.next(updatedUser);
-            }
-            return updatedUser;
-          }
-          throw new Error('Invalid response format');
-        }),
-        catchError(error => {
-          console.error('Update profile error', error);
-          return throwError(() => new Error(error.error?.message || 'Failed to update profile'));
-        })
-      );
-  }
-
-  changePassword(request: ChangePasswordRequest): Observable<boolean> {
-    return this.http.put<any>(`${environment.apiUrl}/auth/change-password`, request)
-      .pipe(
-        map(response => {
-          if (response && response.success) {
-            return true;
-          }
-          return false;
-        }),
-        catchError(error => {
-          console.error('Change password error', error);
-          return throwError(() => new Error(error.error?.message || 'Failed to change password'));
-        })
-      );
-  }
-
-  validateToken(token: string): Observable<boolean> {
-    return this.http.post<any>(`${environment.apiUrl}/auth/validate`, { token })
-      .pipe(
-        map(response => {
-          if (response && response.data !== undefined) {
-            return response.data;
-          }
-          return false;
-        }),
-        catchError(() => of(false))
-      );
-  }
-
-  private handleAuthResponse(authResponse: AuthResponse): AuthResponse {
-    if (authResponse && authResponse.token) {
-      // Store auth data in local storage
-      localStorage.setItem('auth_data', JSON.stringify({
-        token: authResponse.token,
-        user: authResponse.user,
-        expiresAt: authResponse.expiresAt
-      }));
-
-      // Update current user behavior subject
-      this.currentUserSubject.next(authResponse.user);
-
-      // Set auto logout when token expires
-      this.autoLogout(new Date(authResponse.expiresAt).getTime() - new Date().getTime());
-    }
-    return authResponse;
-  }
-
-  private checkAuthStatus(): void {
-    const authData = this.getAuthDataFromStorage();
-    if (authData && authData.token && authData.user) {
-      const expirationDate = new Date(authData.expiresAt);
-
-      // Check if token is still valid
-      if (expirationDate > new Date()) {
-        this.currentUserSubject.next(authData.user);
-        this.autoLogout(expirationDate.getTime() - new Date().getTime());
-      } else {
-        // Token expired, clear storage
-        this.logout();
-      }
-    }
-  }
-
-  private autoLogout(expirationDuration: number): void {
-    if (this.tokenExpirationTimer) {
-      clearTimeout(this.tokenExpirationTimer);
-    }
-    this.tokenExpirationTimer = setTimeout(() => {
-      this.logout();
-    }, expirationDuration);
-  }
-
-  private getAuthDataFromStorage(): { token: string; user: User; expiresAt: string } | null {
-    const storedAuthData = localStorage.getItem('auth_data');
-    if (storedAuthData) {
+  /**
+   * Get the current authentication token
+   */
+  public getAuthToken(): string | null {
+    const authData = localStorage.getItem('auth_data');
+    if (authData) {
       try {
-        return JSON.parse(storedAuthData);
+        const { token } = JSON.parse(authData);
+        return token;
       } catch (e) {
-        console.error('Error parsing auth data from storage', e);
         return null;
       }
     }
     return null;
+  }
+
+  /**
+   * Log in a user
+   * @param loginData Login credentials
+   */
+  public login(loginData: LoginRequest): Observable<User> {
+    return this.http.post<AuthResponse>(`${this.apiUrl}/login`, loginData)
+      .pipe(
+        tap(response => this.handleAuthResponse(response)),
+        map(response => response.user),
+        catchError(error => {
+          console.error('Login error:', error);
+          return throwError(() => error);
+        })
+      );
+  }
+
+  /**
+   * Register a new user
+   * @param userData User registration data
+   */
+  public register(userData: any): Observable<User> {
+    return this.http.post<AuthResponse>(`${this.apiUrl}/register`, userData)
+      .pipe(
+        map(response => response.user),
+        catchError(error => {
+          console.error('Registration error:', error);
+          return throwError(() => error);
+        })
+      );
+  }
+
+  /**
+   * Log out the current user
+   */
+  public logout(): void {
+    // Remove user from local storage
+    localStorage.removeItem('auth_data');
+    
+    // Clear user from BehaviorSubject
+    this.currentUserSubject.next(null);
+    
+    // Emit auth status change
+    this.authStatusChange.next(false);
+  }
+
+  /**
+   * Update user profile
+   * @param userData Updated user data
+   */
+  public updateProfile(userData: Partial<User>): Observable<User> {
+    const userId = this.currentUserValue?.id;
+    
+    if (!userId) {
+      return throwError(() => new Error('User not authenticated'));
+    }
+    
+    return this.http.put<User>(`${environment.apiUrl}/users/${userId}`, userData)
+      .pipe(
+        tap(updatedUser => {
+          // Update local storage with new user data
+          const authData = localStorage.getItem('auth_data');
+          if (authData) {
+            try {
+              const data = JSON.parse(authData);
+              data.user = updatedUser;
+              localStorage.setItem('auth_data', JSON.stringify(data));
+              
+              // Update the behavior subject
+              this.currentUserSubject.next(updatedUser);
+            } catch (e) {
+              console.error('Error updating user data in storage:', e);
+            }
+          }
+        }),
+        catchError(error => {
+          console.error('Profile update error:', error);
+          return throwError(() => error);
+        })
+      );
+  }
+
+  /**
+   * Process and save authentication response
+   * @param response Authentication response from the API
+   */
+  private handleAuthResponse(response: AuthResponse): void {
+    // Store auth data in localStorage
+    localStorage.setItem('auth_data', JSON.stringify({
+      user: response.user,
+      token: response.token
+    }));
+    
+    // Update the behavior subject
+    this.currentUserSubject.next(response.user);
+    
+    // Emit auth status change
+    this.authStatusChange.next(true);
   }
 }

@@ -1,119 +1,199 @@
-<div class="register-container">
-  <mat-card>
-    <mat-card-header>
-      <mat-card-title>Create an Account</mat-card-title>
-    </mat-card-header>
-    
-    <mat-card-content>
-      <form [formGroup]="registerForm" (ngSubmit)="onSubmit()">
-        <div class="form-row">
-          <div class="form-group">
-            <mat-form-field appearance="outline" class="full-width">
-              <mat-label>First Name</mat-label>
-              <input matInput formControlName="firstName" placeholder="Enter your first name">
-              <mat-error *ngIf="registerForm.get('firstName')?.hasError('required')">
-                First name is required
-              </mat-error>
-            </mat-form-field>
+<div class="container mt-5">
+  <div class="row justify-content-center">
+    <div class="col-md-8">
+      <div class="card shadow">
+        <div class="card-header bg-primary text-white">
+          <h4 class="mb-0">Register</h4>
+        </div>
+        <div class="card-body">
+          <div *ngIf="error" class="alert alert-danger">
+            {{ error }}
           </div>
-          
-          <div class="form-group">
-            <mat-form-field appearance="outline" class="full-width">
-              <mat-label>Last Name</mat-label>
-              <input matInput formControlName="lastName" placeholder="Enter your last name">
-              <mat-error *ngIf="registerForm.get('lastName')?.hasError('required')">
-                Last name is required
-              </mat-error>
-            </mat-form-field>
-          </div>
+          <form [formGroup]="registerForm" (ngSubmit)="onSubmit()">
+            <!-- User Type Selection -->
+            <div class="form-group mb-3">
+              <label>Register as:</label>
+              <div class="d-flex">
+                <div class="form-check me-4" *ngFor="let type of userTypes">
+                  <input class="form-check-input" type="radio" [id]="type.value" formControlName="userType" [value]="type.value">
+                  <label class="form-check-label" [for]="type.value">
+                    {{ type.label }}
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <div class="row">
+              <!-- Personal Information -->
+              <div class="col-md-6">
+                <h5 class="mb-3">Personal Information</h5>
+                
+                <div class="form-group mb-3">
+                  <label for="firstName">First Name</label>
+                  <input 
+                    type="text" 
+                    id="firstName" 
+                    formControlName="firstName" 
+                    class="form-control" 
+                    [ngClass]="{ 'is-invalid': submitted && f['firstName'].errors }" />
+                  <div *ngIf="submitted && f['firstName'].errors" class="invalid-feedback">
+                    <div *ngIf="f['firstName'].errors['required']">First Name is required</div>
+                  </div>
+                </div>
+                
+                <div class="form-group mb-3">
+                  <label for="lastName">Last Name</label>
+                  <input 
+                    type="text" 
+                    id="lastName" 
+                    formControlName="lastName" 
+                    class="form-control" 
+                    [ngClass]="{ 'is-invalid': submitted && f['lastName'].errors }" />
+                  <div *ngIf="submitted && f['lastName'].errors" class="invalid-feedback">
+                    <div *ngIf="f['lastName'].errors['required']">Last Name is required</div>
+                  </div>
+                </div>
+                
+                <div class="form-group mb-3">
+                  <label for="email">Email</label>
+                  <input 
+                    type="email" 
+                    id="email" 
+                    formControlName="email" 
+                    class="form-control" 
+                    [ngClass]="{ 'is-invalid': submitted && f['email'].errors }" />
+                  <div *ngIf="submitted && f['email'].errors" class="invalid-feedback">
+                    <div *ngIf="f['email'].errors['required']">Email is required</div>
+                    <div *ngIf="f['email'].errors['email']">Email must be a valid address</div>
+                  </div>
+                </div>
+                
+                <div class="form-group mb-3">
+                  <label for="phoneNumber">Phone Number</label>
+                  <input 
+                    type="tel" 
+                    id="phoneNumber" 
+                    formControlName="phoneNumber" 
+                    class="form-control" 
+                    placeholder="1234567890" 
+                    [ngClass]="{ 'is-invalid': submitted && f['phoneNumber'].errors }" />
+                  <div *ngIf="submitted && f['phoneNumber'].errors" class="invalid-feedback">
+                    <div *ngIf="f['phoneNumber'].errors['required']">Phone Number is required</div>
+                    <div *ngIf="f['phoneNumber'].errors['pattern']">Phone Number must be 10 digits</div>
+                  </div>
+                </div>
+                
+                <div class="form-group mb-3">
+                  <label for="address">Address</label>
+                  <textarea 
+                    id="address" 
+                    formControlName="address" 
+                    class="form-control" 
+                    rows="3"></textarea>
+                </div>
+              </div>
+              
+              <!-- Account Information and Driver Details -->
+              <div class="col-md-6">
+                <h5 class="mb-3">Account Information</h5>
+                
+                <div class="form-group mb-3">
+                  <label for="password">Password</label>
+                  <input 
+                    type="password" 
+                    id="password" 
+                    formControlName="password" 
+                    class="form-control" 
+                    [ngClass]="{ 'is-invalid': submitted && f['password'].errors }" />
+                  <div *ngIf="submitted && f['password'].errors" class="invalid-feedback">
+                    <div *ngIf="f['password'].errors['required']">Password is required</div>
+                    <div *ngIf="f['password'].errors['minlength']">Password must be at least 6 characters</div>
+                  </div>
+                </div>
+                
+                <div class="form-group mb-3">
+                  <label for="confirmPassword">Confirm Password</label>
+                  <input 
+                    type="password" 
+                    id="confirmPassword" 
+                    formControlName="confirmPassword" 
+                    class="form-control" 
+                    [ngClass]="{ 'is-invalid': submitted && f['confirmPassword'].errors }" />
+                  <div *ngIf="submitted && f['confirmPassword'].errors" class="invalid-feedback">
+                    <div *ngIf="f['confirmPassword'].errors['required']">Please confirm your password</div>
+                    <div *ngIf="f['confirmPassword'].errors['passwordMismatch']">Passwords must match</div>
+                  </div>
+                </div>
+                
+                <!-- Driver Details (shown only when 'driver' is selected) -->
+                <div *ngIf="f['userType'].value === 'driver'">
+                  <h5 class="mt-4 mb-3">Driver Details</h5>
+                  
+                  <div class="form-group mb-3">
+                    <label for="vehicleType">Vehicle Type</label>
+                    <select 
+                      id="vehicleType" 
+                      formControlName="vehicleType" 
+                      class="form-control" 
+                      [ngClass]="{ 'is-invalid': submitted && f['vehicleType'].errors }">
+                      <option value="">Select a vehicle type</option>
+                      <option value="van">Van</option>
+                      <option value="truck">Truck</option>
+                      <option value="pickup">Pickup</option>
+                      <option value="box_truck">Box Truck</option>
+                    </select>
+                    <div *ngIf="submitted && f['vehicleType'].errors" class="invalid-feedback">
+                      <div *ngIf="f['vehicleType'].errors['required']">Vehicle Type is required</div>
+                    </div>
+                  </div>
+                  
+                  <div class="form-group mb-3">
+                    <label for="licensePlate">License Plate</label>
+                    <input 
+                      type="text" 
+                      id="licensePlate" 
+                      formControlName="licensePlate" 
+                      class="form-control" 
+                      [ngClass]="{ 'is-invalid': submitted && f['licensePlate'].errors }" />
+                    <div *ngIf="submitted && f['licensePlate'].errors" class="invalid-feedback">
+                      <div *ngIf="f['licensePlate'].errors['required']">License Plate is required</div>
+                    </div>
+                  </div>
+                  
+                  <div class="form-group mb-3">
+                    <label for="capacity">Vehicle Capacity</label>
+                    <select 
+                      id="capacity" 
+                      formControlName="capacity" 
+                      class="form-control" 
+                      [ngClass]="{ 'is-invalid': submitted && f['capacity'].errors }">
+                      <option value="">Select capacity</option>
+                      <option value="small">Small (Up to 500 lbs)</option>
+                      <option value="medium">Medium (Up to 1500 lbs)</option>
+                      <option value="large">Large (Up to 3000 lbs)</option>
+                      <option value="extra_large">Extra Large (3000+ lbs)</option>
+                    </select>
+                    <div *ngIf="submitted && f['capacity'].errors" class="invalid-feedback">
+                      <div *ngIf="f['capacity'].errors['required']">Vehicle Capacity is required</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div class="form-group mt-4">
+              <button [disabled]="loading" class="btn btn-primary btn-lg w-100">
+                <span *ngIf="loading" class="spinner-border spinner-border-sm mr-1"></span>
+                Register
+              </button>
+            </div>
+            
+            <div class="mt-3 text-center">
+              <p>Already have an account? <a routerLink="/auth/login">Login here</a></p>
+            </div>
+          </form>
         </div>
-        
-        <div class="form-group">
-          <mat-form-field appearance="outline" class="full-width">
-            <mat-label>Email</mat-label>
-            <input matInput formControlName="email" type="email" placeholder="Enter your email">
-            <mat-error *ngIf="registerForm.get('email')?.hasError('required')">
-              Email is required
-            </mat-error>
-            <mat-error *ngIf="registerForm.get('email')?.hasError('email')">
-              Please enter a valid email
-            </mat-error>
-          </mat-form-field>
-        </div>
-        
-        <div class="form-group">
-          <mat-form-field appearance="outline" class="full-width">
-            <mat-label>Phone Number</mat-label>
-            <input matInput formControlName="phone" placeholder="Enter your phone number">
-            <mat-error *ngIf="registerForm.get('phone')?.hasError('required')">
-              Phone number is required
-            </mat-error>
-            <mat-error *ngIf="registerForm.get('phone')?.hasError('pattern')">
-              Please enter a valid phone number
-            </mat-error>
-          </mat-form-field>
-        </div>
-        
-        <div class="form-group">
-          <mat-form-field appearance="outline" class="full-width">
-            <mat-label>Account Type</mat-label>
-            <mat-select formControlName="userType">
-              <mat-option *ngFor="let type of userTypes" [value]="type.value">
-                {{ type.viewValue }}
-              </mat-option>
-            </mat-select>
-          </mat-form-field>
-        </div>
-        
-        <div class="form-group">
-          <mat-form-field appearance="outline" class="full-width">
-            <mat-label>Password</mat-label>
-            <input matInput formControlName="password" type="password" placeholder="Create a password">
-            <mat-error *ngIf="registerForm.get('password')?.hasError('required')">
-              Password is required
-            </mat-error>
-            <mat-error *ngIf="registerForm.get('password')?.hasError('minlength')">
-              Password must be at least 6 characters
-            </mat-error>
-          </mat-form-field>
-        </div>
-        
-        <div class="form-group">
-          <mat-form-field appearance="outline" class="full-width">
-            <mat-label>Confirm Password</mat-label>
-            <input matInput formControlName="confirmPassword" type="password" placeholder="Confirm your password">
-            <mat-error *ngIf="registerForm.get('confirmPassword')?.hasError('required')">
-              Please confirm your password
-            </mat-error>
-            <mat-error *ngIf="registerForm.get('confirmPassword')?.hasError('passwordMismatch')">
-              Passwords don't match
-            </mat-error>
-          </mat-form-field>
-        </div>
-        
-        <div class="form-group terms-checkbox">
-          <mat-checkbox formControlName="termsAccepted" color="primary">
-            I agree to the Terms of Service and Privacy Policy
-          </mat-checkbox>
-          <mat-error *ngIf="registerForm.get('termsAccepted')?.hasError('required') && registerForm.get('termsAccepted')?.touched">
-            You must accept the terms to continue
-          </mat-error>
-        </div>
-        
-        <div *ngIf="registerError" class="error-message">
-          {{ registerError }}
-        </div>
-        
-        <div class="button-row">
-          <button mat-raised-button color="primary" type="submit" [disabled]="registerForm.invalid || isSubmitting">
-            {{ isSubmitting ? 'Creating account...' : 'Create Account' }}
-          </button>
-        </div>
-        
-        <div class="login-link">
-          Already have an account? <a [routerLink]="['/login']">Login</a>
-        </div>
-      </form>
-    </mat-card-content>
-  </mat-card>
+      </div>
+    </div>
+  </div>
 </div>

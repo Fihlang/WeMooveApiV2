@@ -1,202 +1,224 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable } from 'rxjs';
-import { map, catchError } from 'rxjs/operators';
+import { Observable, throwError } from 'rxjs';
+import { catchError, map } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
-import { 
-  Delivery, 
-  DeliveryItem, 
-  CreateDeliveryRequest, 
-  UpdateDeliveryStatusRequest, 
-  AssignDriverRequest, 
-  Review, 
-  CreateReviewRequest 
-} from '../../models/delivery.model';
+import { Delivery, DeliveryWithItems } from '../../models/delivery.model';
+import { DeliveryItem } from '../../models/delivery-item.model';
+import { AuthService } from './auth.service';
 
 @Injectable({
   providedIn: 'root'
 })
 export class DeliveryService {
-  constructor(private http: HttpClient) { }
+  private apiUrl = `${environment.apiUrl}/deliveries`;
 
-  // Customer delivery operations
-  getCustomerDeliveries(customerId: number): Observable<Delivery[]> {
-    return this.http.get<any>(`${environment.apiUrl}/deliveries/customer/${customerId}`)
+  constructor(
+    private http: HttpClient,
+    private authService: AuthService
+  ) {}
+
+  /**
+   * Get all deliveries for the current user based on their role
+   */
+  public getMyDeliveries(): Observable<Delivery[]> {
+    const userId = this.authService.currentUserValue?.id;
+    
+    if (!userId) {
+      return throwError(() => new Error('User not authenticated'));
+    }
+    
+    // Endpoint varies based on user type
+    const endpoint = this.authService.isDriver 
+      ? `${this.apiUrl}/driver/${userId}` 
+      : `${this.apiUrl}/customer/${userId}`;
+    
+    return this.http.get<Delivery[]>(endpoint)
       .pipe(
-        map(response => {
-          if (response && response.data) {
-            return response.data;
-          }
-          return [];
-        }),
         catchError(error => {
-          console.error('Get customer deliveries error', error);
-          throw new Error(error.error?.message || 'Failed to get customer deliveries');
+          console.error('Error fetching deliveries:', error);
+          return throwError(() => error);
         })
       );
   }
 
-  createDelivery(request: CreateDeliveryRequest): Observable<Delivery> {
-    return this.http.post<any>(`${environment.apiUrl}/deliveries`, request)
+  /**
+   * Get active deliveries for the current driver
+   */
+  public getActiveDeliveries(): Observable<Delivery[]> {
+    if (!this.authService.isDriver) {
+      return throwError(() => new Error('Only drivers can access active deliveries'));
+    }
+    
+    const userId = this.authService.currentUserValue?.id;
+    
+    if (!userId) {
+      return throwError(() => new Error('User not authenticated'));
+    }
+    
+    return this.http.get<Delivery[]>(`${this.apiUrl}/driver/${userId}/active`)
       .pipe(
-        map(response => {
-          if (response && response.data) {
-            return response.data;
-          }
-          throw new Error('Invalid response format');
-        }),
         catchError(error => {
-          console.error('Create delivery error', error);
-          throw new Error(error.error?.message || 'Failed to create delivery');
+          console.error('Error fetching active deliveries:', error);
+          return throwError(() => error);
         })
       );
   }
 
-  // Driver delivery operations
-  getDriverDeliveries(driverId: number): Observable<Delivery[]> {
-    return this.http.get<any>(`${environment.apiUrl}/deliveries/driver/${driverId}`)
+  /**
+   * Get a specific delivery with its items
+   * @param deliveryId ID of the delivery to retrieve
+   */
+  public getDelivery(deliveryId: number): Observable<DeliveryWithItems> {
+    return this.http.get<DeliveryWithItems>(`${this.apiUrl}/${deliveryId}`)
       .pipe(
-        map(response => {
-          if (response && response.data) {
-            return response.data;
-          }
-          return [];
-        }),
         catchError(error => {
-          console.error('Get driver deliveries error', error);
-          throw new Error(error.error?.message || 'Failed to get driver deliveries');
+          console.error(`Error fetching delivery ${deliveryId}:`, error);
+          return throwError(() => error);
         })
       );
   }
 
-  getActiveDriverDeliveries(driverId: number): Observable<Delivery[]> {
-    return this.http.get<any>(`${environment.apiUrl}/deliveries/driver/${driverId}/active`)
+  /**
+   * Create a new delivery
+   * @param deliveryData Delivery data
+   */
+  public createDelivery(deliveryData: any): Observable<Delivery> {
+    const userId = this.authService.currentUserValue?.id;
+    
+    if (!userId) {
+      return throwError(() => new Error('User not authenticated'));
+    }
+    
+    // Ensure customer ID is set
+    const data = {
+      ...deliveryData,
+      customerId: userId
+    };
+    
+    return this.http.post<Delivery>(this.apiUrl, data)
       .pipe(
-        map(response => {
-          if (response && response.data) {
-            return response.data;
-          }
-          return [];
-        }),
         catchError(error => {
-          console.error('Get active driver deliveries error', error);
-          throw new Error(error.error?.message || 'Failed to get active driver deliveries');
+          console.error('Error creating delivery:', error);
+          return throwError(() => error);
         })
       );
   }
 
-  // General delivery operations
-  getDelivery(id: number): Observable<Delivery> {
-    return this.http.get<any>(`${environment.apiUrl}/deliveries/${id}`)
+  /**
+   * Update the status of a delivery
+   * @param deliveryId ID of the delivery to update
+   * @param status New status value
+   */
+  public updateDeliveryStatus(deliveryId: number, status: string): Observable<Delivery> {
+    return this.http.patch<Delivery>(`${this.apiUrl}/${deliveryId}/status`, { status })
       .pipe(
-        map(response => {
-          if (response && response.data) {
-            return response.data;
-          }
-          throw new Error('Invalid response format');
-        }),
         catchError(error => {
-          console.error(`Get delivery ${id} error`, error);
-          throw new Error(error.error?.message || 'Failed to get delivery');
+          console.error(`Error updating delivery ${deliveryId} status:`, error);
+          return throwError(() => error);
         })
       );
   }
 
-  updateDeliveryStatus(id: number, request: UpdateDeliveryStatusRequest): Observable<Delivery> {
-    return this.http.put<any>(`${environment.apiUrl}/deliveries/${id}/status`, request)
+  /**
+   * Assign a driver to a delivery
+   * @param deliveryId ID of the delivery
+   * @param driverId ID of the driver to assign
+   */
+  public assignDriver(deliveryId: number, driverId: number): Observable<Delivery> {
+    return this.http.patch<Delivery>(`${this.apiUrl}/${deliveryId}/assign`, { driverId })
       .pipe(
-        map(response => {
-          if (response && response.data) {
-            return response.data;
-          }
-          throw new Error('Invalid response format');
-        }),
         catchError(error => {
-          console.error(`Update delivery ${id} status error`, error);
-          throw new Error(error.error?.message || 'Failed to update delivery status');
+          console.error(`Error assigning driver to delivery ${deliveryId}:`, error);
+          return throwError(() => error);
         })
       );
   }
 
-  assignDriverToDelivery(deliveryId: number, request: AssignDriverRequest): Observable<Delivery> {
-    return this.http.put<any>(`${environment.apiUrl}/deliveries/${deliveryId}/assign`, request)
+  /**
+   * Update driver location for an active delivery
+   * @param deliveryId ID of the delivery
+   * @param latitude Current latitude
+   * @param longitude Current longitude
+   */
+  public updateDriverLocation(deliveryId: number, latitude: number, longitude: number): Observable<Delivery> {
+    if (!this.authService.isDriver) {
+      return throwError(() => new Error('Only drivers can update location'));
+    }
+    
+    return this.http.patch<Delivery>(`${this.apiUrl}/${deliveryId}/location`, { 
+      latitude, 
+      longitude 
+    }).pipe(
+      catchError(error => {
+        console.error(`Error updating location for delivery ${deliveryId}:`, error);
+        return throwError(() => error);
+      })
+    );
+  }
+
+  /**
+   * Add items to a delivery
+   * @param deliveryId ID of the delivery
+   * @param items Array of delivery items to add
+   */
+  public addDeliveryItems(deliveryId: number, items: Partial<DeliveryItem>[]): Observable<DeliveryItem[]> {
+    return this.http.post<DeliveryItem[]>(`${this.apiUrl}/${deliveryId}/items`, { items })
       .pipe(
-        map(response => {
-          if (response && response.data) {
-            return response.data;
-          }
-          throw new Error('Invalid response format');
-        }),
         catchError(error => {
-          console.error(`Assign driver to delivery ${deliveryId} error`, error);
-          throw new Error(error.error?.message || 'Failed to assign driver to delivery');
+          console.error(`Error adding items to delivery ${deliveryId}:`, error);
+          return throwError(() => error);
         })
       );
   }
 
-  // Item operations
-  getDeliveryItems(deliveryId: number): Observable<DeliveryItem[]> {
-    return this.http.get<any>(`${environment.apiUrl}/deliveries/${deliveryId}/items`)
+  /**
+   * Remove an item from a delivery
+   * @param deliveryId ID of the delivery
+   * @param itemId ID of the item to remove
+   */
+  public removeDeliveryItem(deliveryId: number, itemId: number): Observable<void> {
+    return this.http.delete<void>(`${this.apiUrl}/${deliveryId}/items/${itemId}`)
       .pipe(
-        map(response => {
-          if (response && response.data) {
-            return response.data;
-          }
-          return [];
-        }),
         catchError(error => {
-          console.error(`Get delivery ${deliveryId} items error`, error);
-          throw new Error(error.error?.message || 'Failed to get delivery items');
+          console.error(`Error removing item ${itemId} from delivery ${deliveryId}:`, error);
+          return throwError(() => error);
         })
       );
   }
 
-  // Review operations
-  getDriverReviews(driverId: number): Observable<Review[]> {
-    return this.http.get<any>(`${environment.apiUrl}/reviews/driver/${driverId}`)
+  /**
+   * Calculate delivery price based on items, distance, etc.
+   * @param deliveryData Delivery calculation data
+   */
+  public calculateDeliveryPrice(deliveryData: any): Observable<{ totalPrice: number }> {
+    return this.http.post<{ totalPrice: number }>(`${this.apiUrl}/calculate-price`, deliveryData)
       .pipe(
-        map(response => {
-          if (response && response.data) {
-            return response.data;
-          }
-          return [];
-        }),
         catchError(error => {
-          console.error(`Get driver ${driverId} reviews error`, error);
-          throw new Error(error.error?.message || 'Failed to get driver reviews');
+          console.error('Error calculating delivery price:', error);
+          return throwError(() => error);
         })
       );
   }
 
-  getDriverAverageRating(driverId: number): Observable<number> {
-    return this.http.get<any>(`${environment.apiUrl}/reviews/driver/${driverId}/rating`)
-      .pipe(
-        map(response => {
-          if (response && response.data !== undefined) {
-            return response.data;
-          }
-          return 0;
-        }),
-        catchError(error => {
-          console.error(`Get driver ${driverId} average rating error`, error);
-          throw new Error(error.error?.message || 'Failed to get driver average rating');
-        })
-      );
-  }
-
-  createReview(request: CreateReviewRequest): Observable<Review> {
-    return this.http.post<any>(`${environment.apiUrl}/reviews`, request)
-      .pipe(
-        map(response => {
-          if (response && response.data) {
-            return response.data;
-          }
-          throw new Error('Invalid response format');
-        }),
-        catchError(error => {
-          console.error('Create review error', error);
-          throw new Error(error.error?.message || 'Failed to create review');
-        })
-      );
+  /**
+   * Find nearby drivers for pickup
+   * @param latitude Pickup latitude
+   * @param longitude Pickup longitude
+   * @param radius Search radius in kilometers
+   */
+  public findNearbyDrivers(latitude: number, longitude: number, radius: number = 10): Observable<any[]> {
+    return this.http.get<any[]>(`${environment.apiUrl}/drivers/nearby`, {
+      params: {
+        latitude: latitude.toString(),
+        longitude: longitude.toString(),
+        radius: radius.toString()
+      }
+    }).pipe(
+      catchError(error => {
+        console.error('Error finding nearby drivers:', error);
+        return throwError(() => error);
+      })
+    );
   }
 }

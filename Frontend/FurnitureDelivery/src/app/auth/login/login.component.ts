@@ -1,85 +1,81 @@
 import { Component, OnInit } from '@angular/core';
-import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
+import { FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { Router, ActivatedRoute } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
-import { CommonModule } from '@angular/common';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatInputModule } from '@angular/material/input';
-import { MatButtonModule } from '@angular/material/button';
-import { MatCardModule } from '@angular/material/card';
-import { MatSnackBar } from '@angular/material/snack-bar';
 
 @Component({
   selector: 'app-login',
   templateUrl: './login.component.html',
-  styleUrls: ['./login.component.scss'],
-  standalone: true,
-  imports: [
-    CommonModule,
-    ReactiveFormsModule,
-    MatFormFieldModule,
-    MatInputModule,
-    MatButtonModule,
-    MatCardModule
-  ]
+  styleUrls: ['./login.component.css']
 })
 export class LoginComponent implements OnInit {
-  loginForm!: FormGroup;
-  isSubmitting = false;
-  loginError = '';
+  loginForm: FormGroup;
+  loading = false;
+  submitted = false;
+  error = '';
+  returnUrl: string;
 
   constructor(
     private formBuilder: FormBuilder,
-    private authService: AuthService,
+    private route: ActivatedRoute,
     private router: Router,
-    private snackBar: MatSnackBar
-  ) { }
-
-  ngOnInit(): void {
-    this.initForm();
-  }
-
-  initForm(): void {
+    private authService: AuthService
+  ) { 
+    // Redirect to appropriate dashboard if already logged in
+    if (this.authService.isAuthenticated) {
+      this.redirectBasedOnRole();
+    }
+    
+    // Initialize return URL from route parameters
+    this.returnUrl = this.route.snapshot.queryParams['returnUrl'] || '/';
+    
+    // Initialize form
     this.loginForm = this.formBuilder.group({
       email: ['', [Validators.required, Validators.email]],
       password: ['', [Validators.required, Validators.minLength(6)]]
     });
   }
 
-  onSubmit(): void {
+  ngOnInit(): void {
+    // This is handled in the constructor
+  }
+
+  // Convenience getter for easy access to form fields
+  get f() { return this.loginForm.controls; }
+
+  onSubmit() {
+    this.submitted = true;
+
+    // Stop if form is invalid
     if (this.loginForm.invalid) {
       return;
     }
 
-    this.isSubmitting = true;
-    this.loginError = '';
+    this.loading = true;
+    this.error = '';
 
-    this.authService.login(this.loginForm.value).subscribe({
+    this.authService.login({
+      email: this.f['email'].value,
+      password: this.f['password'].value
+    })
+    .subscribe({
       next: () => {
-        this.isSubmitting = false;
-        const userType = this.authService.userRole;
-        
-        if (userType === 'driver') {
-          this.router.navigate(['/driver/dashboard']);
-        } else {
-          this.router.navigate(['/user/dashboard']);
-        }
-        
-        this.snackBar.open('Login successful!', 'Close', {
-          duration: 3000,
-          horizontalPosition: 'center',
-          verticalPosition: 'bottom'
-        });
+        // Navigate based on user role
+        this.redirectBasedOnRole();
       },
-      error: (error) => {
-        this.isSubmitting = false;
-        this.loginError = error.error?.message || 'Login failed. Please try again.';
-        this.snackBar.open(this.loginError, 'Close', {
-          duration: 3000,
-          horizontalPosition: 'center',
-          verticalPosition: 'bottom'
-        });
+      error: err => {
+        this.error = err.message || 'Login failed';
+        this.loading = false;
       }
     });
+  }
+
+  private redirectBasedOnRole() {
+    // Check user role and navigate to appropriate dashboard
+    if (this.authService.isDriver) {
+      this.router.navigate(['/driver/dashboard']);
+    } else {
+      this.router.navigate(['/customer/dashboard']);
+    }
   }
 }
