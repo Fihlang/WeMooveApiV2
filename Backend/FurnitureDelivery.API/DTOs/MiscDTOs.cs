@@ -1,135 +1,111 @@
-using System.ComponentModel.DataAnnotations;
-
 namespace FurnitureDelivery.API.DTOs
 {
-    public class CreateReviewRequest
+    // WebSocket Message
+    public class WebSocketMessage
     {
-        [Required]
-        public int DeliveryId { get; set; }
+        public string Type { get; set; } = string.Empty;
+        public object? Data { get; set; }
+    }
 
-        [Required]
-        public int CustomerId { get; set; }
+    // Dashboard Summary DTO for Customers
+    public class CustomerDashboardDTO
+    {
+        public int TotalDeliveries { get; set; }
+        public int ActiveDeliveries { get; set; }
+        public int CompletedDeliveries { get; set; }
+        public List<DeliveryDTO> RecentDeliveries { get; set; } = new List<DeliveryDTO>();
+        public List<DeliveryDTO> UpcomingDeliveries { get; set; } = new List<DeliveryDTO>();
+        public List<NotificationDTO> Notifications { get; set; } = new List<NotificationDTO>();
+    }
 
-        [Required]
+    // Dashboard Summary DTO for Drivers
+    public class DriverDashboardDTO
+    {
+        public bool IsAvailable { get; set; }
+        public string VerificationStatus { get; set; } = string.Empty;
+        public double? Rating { get; set; }
+        public int TotalDeliveries { get; set; }
+        public int ActiveDeliveries { get; set; }
+        public int CompletedDeliveries { get; set; }
+        public double TotalEarnings { get; set; }
+        public List<DeliveryDTO> CurrentDeliveries { get; set; } = new List<DeliveryDTO>();
+        public List<DeliveryDTO> UpcomingDeliveries { get; set; } = new List<DeliveryDTO>();
+        public List<ReviewDTO> RecentReviews { get; set; } = new List<ReviewDTO>();
+        public List<NotificationDTO> Notifications { get; set; } = new List<NotificationDTO>();
+    }
+
+    // Dashboard Summary DTO for Admins
+    public class AdminDashboardDTO
+    {
+        public int TotalUsers { get; set; }
+        public int TotalCustomers { get; set; }
+        public int TotalDrivers { get; set; }
+        public int TotalDeliveries { get; set; }
+        public int PendingDriverVerifications { get; set; }
+        public int ActiveDeliveries { get; set; }
+        public double TotalRevenue { get; set; }
+        public List<DeliveryDTO> RecentDeliveries { get; set; } = new List<DeliveryDTO>();
+        public List<DriverDTO> PendingDrivers { get; set; } = new List<DriverDTO>();
+    }
+
+    // Location Update DTO
+    public class LocationUpdateDTO
+    {
         public int DriverId { get; set; }
-
-        [Required]
-        [Range(1, 5, ErrorMessage = "Rating must be between 1 and 5")]
-        public int Rating { get; set; }
-
-        public string? Comment { get; set; }
-    }
-
-    public class ReviewDTO
-    {
-        public int Id { get; set; }
-        public DateTime CreatedAt { get; set; }
-        public int DeliveryId { get; set; }
-        public int CustomerId { get; set; }
-        public UserDTO Customer { get; set; }
-        public int DriverId { get; set; }
-        public DriverDTO Driver { get; set; }
-        public int Rating { get; set; }
-        public string? Comment { get; set; }
-    }
-
-    public class CreateMessageRequest
-    {
-        [Required]
-        public int DeliveryId { get; set; }
-
-        [Required]
-        public int SenderId { get; set; }
-
-        [Required]
-        public int ReceiverId { get; set; }
-
-        [Required]
-        public string Content { get; set; }
-    }
-
-    public class MessageDTO
-    {
-        public int Id { get; set; }
-        public DateTime CreatedAt { get; set; }
-        public int DeliveryId { get; set; }
-        public int SenderId { get; set; }
-        public UserDTO Sender { get; set; }
-        public int ReceiverId { get; set; }
-        public UserDTO Receiver { get; set; }
-        public string Content { get; set; }
-        public bool IsRead { get; set; }
-    }
-
-    public class NotificationDTO
-    {
-        public int Id { get; set; }
-        public DateTime CreatedAt { get; set; }
         public int UserId { get; set; }
-        public string Type { get; set; }
-        public string Title { get; set; }
-        public string Message { get; set; }
-        public bool IsRead { get; set; }
-        public string? RelatedEntityType { get; set; }
-        public int? RelatedEntityId { get; set; }
-    }
-
-    public class MarkNotificationReadRequest
-    {
-        [Required]
-        public int NotificationId { get; set; }
-    }
-
-    public class ApiResponse<T>
-    {
-        public bool Success { get; set; }
-        public string Message { get; set; }
-        public T Data { get; set; }
-
-        public static ApiResponse<T> SuccessResponse(T data, string message = "Operation successful")
-        {
-            return new ApiResponse<T>
-            {
-                Success = true,
-                Message = message,
-                Data = data
-            };
-        }
-
-        public static ApiResponse<T> ErrorResponse(string message)
-        {
-            return new ApiResponse<T>
-            {
-                Success = false,
-                Message = message,
-                Data = default
-            };
-        }
-    }
-
-    public class UpdateDriverLocationRequest
-    {
-        [Required]
-        [Range(-90, 90, ErrorMessage = "Latitude must be between -90 and 90")]
+        public string DriverName { get; set; } = string.Empty;
         public double Latitude { get; set; }
-
-        [Required]
-        [Range(-180, 180, ErrorMessage = "Longitude must be between -180 and 180")]
         public double Longitude { get; set; }
+        public DateTime Timestamp { get; set; }
     }
 
-    public class DriverNearbyRequest
+    // Status Update DTO
+    public class StatusUpdateDTO
     {
-        [Required]
-        [Range(-90, 90, ErrorMessage = "Latitude must be between -90 and 90")]
-        public double Latitude { get; set; }
+        public int DeliveryId { get; set; }
+        public string Status { get; set; } = string.Empty;
+        public string PreviousStatus { get; set; } = string.Empty;
+        public DateTime UpdatedAt { get; set; }
+    }
 
-        [Required]
-        [Range(-180, 180, ErrorMessage = "Longitude must be between -180 and 180")]
-        public double Longitude { get; set; }
+    // Statistics DTO
+    public class StatisticsDTO
+    {
+        public int TotalDeliveries { get; set; }
+        public int CompletedDeliveries { get; set; }
+        public int CancelledDeliveries { get; set; }
+        public double AverageRating { get; set; }
+        public double TotalRevenue { get; set; }
+        public Dictionary<string, int> DeliveriesByStatus { get; set; } = new Dictionary<string, int>();
+        public Dictionary<string, int> DeliveriesByMonth { get; set; } = new Dictionary<string, int>();
+    }
 
-        [Required]
-        [Range(0.1, 100, ErrorMessage = "Radius must be between 0.1 and 100 km")]
-        public double Radius { get; set; } = 10.0; // Default 10km
+    // Rate Calculation Request
+    public class RateCalculationRequest
+    {
+        public string PickupAddress { get; set; } = string.Empty;
+        public string DestinationAddress { get; set; } = string.Empty;
+        public List<RateCalculationItem> Items { get; set; } = new List<RateCalculationItem>();
+    }
+
+    // Rate Calculation Item
+    public class RateCalculationItem
+    {
+        public int FurnitureId { get; set; }
+        public int Quantity { get; set; }
+        public bool SpecialHandling { get; set; }
+    }
+
+    // Rate Calculation Response
+    public class RateCalculationResponse
+    {
+        public double BaseRate { get; set; }
+        public double DistanceRate { get; set; }
+        public double WeightRate { get; set; }
+        public double SpecialHandlingRate { get; set; }
+        public double TotalRate { get; set; }
+        public double Distance { get; set; }
+        public double Duration { get; set; }
+        public string Currency { get; set; } = "USD";
     }
 }

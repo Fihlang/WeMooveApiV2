@@ -1,66 +1,70 @@
+using System.Text;
+using System.Text.Json.Serialization;
 using FurnitureDelivery.API.Data;
 using FurnitureDelivery.API.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
-using System.Net.WebSockets;
-using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container
-// Configure DbContext
+builder.Services.AddControllers().AddJsonOptions(options =>
+{
+    options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
+    options.JsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
+});
+
+// Add DbContext
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+{
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"));
+});
 
 // Add services
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddSingleton<IWebSocketService, WebSocketService>();
 
-// Configure CORS
-builder.Services.AddCors(options =>
-{
-    options.AddPolicy("AllowAll", policy =>
-    {
-        policy.AllowAnyOrigin()
-              .AllowAnyMethod()
-              .AllowAnyHeader();
-    });
-});
-
-// Configure JWT Authentication
+// Add Authentication
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
         options.TokenValidationParameters = new TokenValidationParameters
         {
-            ValidateIssuer = true,
-            ValidateAudience = true,
-            ValidateLifetime = true,
             ValidateIssuerSigningKey = true,
-            ValidIssuer = builder.Configuration["Jwt:Issuer"],
-            ValidAudience = builder.Configuration["Jwt:Audience"],
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:SecretKey"]))
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(
+                builder.Configuration.GetSection("JwtSettings:Secret").Value)),
+            ValidateIssuer = false,
+            ValidateAudience = false,
+            // Set clock skew to zero so tokens expire exactly at token expiration time
+            ClockSkew = TimeSpan.Zero
         };
     });
 
-builder.Services.AddControllers()
-    .AddNewtonsoftJson(options =>
+// Add CORS
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAll", builder =>
     {
-        options.SerializerSettings.ReferenceLoopHandling = Newtonsoft.Json.ReferenceLoopHandling.Ignore;
+        builder.AllowAnyOrigin()
+               .AllowAnyMethod()
+               .AllowAnyHeader();
     });
+});
 
-// Add API Explorer
+// Add Swagger
 builder.Services.AddEndpointsApiExplorer();
-
-// Configure Swagger
 builder.Services.AddSwaggerGen(c =>
 {
-    c.SwaggerDoc("v1", new OpenApiInfo { Title = "Furniture Delivery API", Version = "v1" });
+    c.SwaggerDoc("v1", new OpenApiInfo { 
+        Title = "Furniture Delivery API", 
+        Version = "v1",
+        Description = "API for the Furniture Delivery application"
+    });
     
-    // Add JWT Authentication to Swagger
+    // Add JWT Authentication
     c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
         Description = "JWT Authorization header using the Bearer scheme. Example: \"Authorization: Bearer {token}\"",
@@ -69,7 +73,7 @@ builder.Services.AddSwaggerGen(c =>
         Type = SecuritySchemeType.ApiKey,
         Scheme = "Bearer"
     });
-
+    
     c.AddSecurityRequirement(new OpenApiSecurityRequirement
     {
         {
@@ -81,7 +85,7 @@ builder.Services.AddSwaggerGen(c =>
                     Id = "Bearer"
                 }
             },
-            new string[] {}
+            new string[] { }
         }
     });
 });
@@ -91,29 +95,20 @@ var app = builder.Build();
 // Configure the HTTP request pipeline
 if (app.Environment.IsDevelopment())
 {
-    app.UseDeveloperExceptionPage();
     app.UseSwagger();
-    app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "Furniture Delivery API v1"));
+    app.UseSwaggerUI();
 }
 
-// Enable CORS
+app.UseHttpsRedirection();
+
 app.UseCors("AllowAll");
 
-// Check if we need to run migrations
-if (args.Contains("--migrate"))
-{
-    using (var scope = app.Services.CreateScope())
-    {
-        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-        db.Database.Migrate();
-    }
-}
-
-// WebSockets middleware
-app.UseWebSockets(new WebSocketOptions
+// Add WebSocket support
+var webSocketOptions = new WebSocketOptions
 {
     KeepAliveInterval = TimeSpan.FromMinutes(2)
-});
+};
+app.UseWebSockets(webSocketOptions);
 
 // Handle WebSocket connections
 app.Use(async (context, next) =>
@@ -122,39 +117,36 @@ app.Use(async (context, next) =>
     {
         if (context.WebSockets.IsWebSocketRequest)
         {
-            using WebSocket webSocket = await context.WebSockets.AcceptWebSocketAsync();
-            var webSocketService = app.Services.GetService<IWebSocketService>();
+            var webSocket = await context.WebSockets.AcceptWebSocketAsync();
+            var webSocketService = context.RequestServices.GetRequiredService<IWebSocketService>();
             
-            // Extract user ID from query string or JWT token
-            var userId = 0;
-            if (context.Request.Query.TryGetValue("userId", out var userIdValue) && int.TryParse(userIdValue, out var parsedUserId))
+            // Create a unique connection ID
+            var connectionId = Guid.NewGuid().ToString();
+            
+            // Add the connection to the WebSocketService
+            ((WebSocketService)webSocketService).AddConnection(connectionId, webSocket);
+            
+            // Keep the socket open until it's closed by the client
+            var buffer = new byte[1024 * 4];
+            var receiveResult = await webSocket.ReceiveAsync(
+                new ArraySegment<byte>(buffer), CancellationToken.None);
+            
+            while (!receiveResult.CloseStatus.HasValue)
             {
-                userId = parsedUserId;
+                receiveResult = await webSocket.ReceiveAsync(
+                    new ArraySegment<byte>(buffer), CancellationToken.None);
             }
-            else if (context.User.Identity.IsAuthenticated)
-            {
-                var userIdClaim = context.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier);
-                if (userIdClaim != null && int.TryParse(userIdClaim.Value, out var claimUserId))
-                {
-                    userId = claimUserId;
-                }
-            }
-
-            if (userId > 0)
-            {
-                // Generate a unique connection ID
-                var connectionId = Guid.NewGuid().ToString();
-
-                // Add the connection to the WebSocket service
-                webSocketService.AddConnection(userId, connectionId);
-
-                // Keep the socket open and handle messages
-                await HandleWebSocketConnection(webSocket, connectionId, webSocketService);
-            }
+            
+            // Remove the connection when closed
+            await webSocketService.RemoveConnection(connectionId);
+            await webSocket.CloseAsync(
+                receiveResult.CloseStatus.Value,
+                receiveResult.CloseStatusDescription,
+                CancellationToken.None);
         }
         else
         {
-            context.Response.StatusCode = 400;
+            context.Response.StatusCode = StatusCodes.Status400BadRequest;
         }
     }
     else
@@ -163,43 +155,28 @@ app.Use(async (context, next) =>
     }
 });
 
-app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
+
 app.MapControllers();
 
-await app.RunAsync();
-
-// WebSocket connection handler
-async Task HandleWebSocketConnection(WebSocket webSocket, string connectionId, IWebSocketService webSocketService)
+// Apply migrations and seed data
+using (var scope = app.Services.CreateScope())
 {
-    var buffer = new byte[1024 * 4];
-    var receiveResult = await webSocket.ReceiveAsync(
-        new ArraySegment<byte>(buffer), CancellationToken.None);
-
+    var services = scope.ServiceProvider;
     try
     {
-        while (!receiveResult.CloseStatus.HasValue)
-        {
-            // Process incoming messages if needed
-            // For now we're just keeping the connection open for server->client communication
-
-            receiveResult = await webSocket.ReceiveAsync(
-                new ArraySegment<byte>(buffer), CancellationToken.None);
-        }
-
-        await webSocket.CloseAsync(
-            receiveResult.CloseStatus.Value,
-            receiveResult.CloseStatusDescription,
-            CancellationToken.None);
+        var dbContext = services.GetRequiredService<ApplicationDbContext>();
+        dbContext.Database.Migrate();
+        
+        // Seed data if needed
+        // DbInitializer.Initialize(dbContext);
     }
-    catch (Exception)
+    catch (Exception ex)
     {
-        // Handle exceptions
-    }
-    finally
-    {
-        // Remove the connection when it's closed
-        webSocketService.RemoveConnection(connectionId);
+        var logger = services.GetRequiredService<ILogger<Program>>();
+        logger.LogError(ex, "An error occurred while migrating or seeding the database.");
     }
 }
+
+app.Run();

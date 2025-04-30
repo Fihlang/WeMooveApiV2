@@ -1,133 +1,160 @@
-using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace FurnitureDelivery.API.DTOs
 {
-    public class CreateDeliveryRequest
+    // Furniture DTO
+    public class FurnitureDTO
     {
-        [Required]
-        public int CustomerId { get; set; }
-
-        [Required]
-        public DateTime ScheduledDate { get; set; }
-
-        [Required]
-        [Range(1, double.MaxValue, ErrorMessage = "Total price must be greater than 0")]
-        public decimal TotalPrice { get; set; }
-
-        [Required]
-        public string PickupAddress { get; set; }
-
-        [Required]
-        public string DestinationAddress { get; set; }
-
-        public List<CreateDeliveryItemRequest> Items { get; set; } = new List<CreateDeliveryItemRequest>();
-
-        public string? Notes { get; set; }
-        
-        public string? PaymentMethod { get; set; }
+        public int Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string? Description { get; set; }
+        public double Weight { get; set; }
+        public object Dimensions { get; set; } = null!;
+        public string Category { get; set; } = string.Empty;
+        public string? ImageUrl { get; set; }
     }
 
-    public class CreateDeliveryItemRequest
+    // Delivery Item DTO
+    public class DeliveryItemDTO
     {
-        [Required]
+        public int Id { get; set; }
+        public int DeliveryId { get; set; }
         public int FurnitureId { get; set; }
-
-        [Required]
-        [Range(1, int.MaxValue, ErrorMessage = "Quantity must be at least 1")]
+        public FurnitureDTO? Furniture { get; set; }
         public int Quantity { get; set; }
-
-        public bool SpecialHandling { get; set; } = false;
+        public bool SpecialHandling { get; set; }
     }
 
-    public class UpdateDeliveryStatusRequest
-    {
-        [Required]
-        [RegularExpression("pending|assigned|in_transit|delivered|cancelled", 
-            ErrorMessage = "Status must be one of: pending, assigned, in_transit, delivered, cancelled")]
-        public string Status { get; set; }
-    }
-
-    public class AssignDriverRequest
-    {
-        [Required]
-        public int DriverId { get; set; }
-    }
-
+    // Delivery DTO
     public class DeliveryDTO
     {
         public int Id { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime UpdatedAt { get; set; }
         public int CustomerId { get; set; }
-        public UserDTO Customer { get; set; }
+        public UserDTO? Customer { get; set; }
         public int? DriverId { get; set; }
-        public DriverDTO Driver { get; set; }
-        public string Status { get; set; }
+        public DriverDTO? Driver { get; set; }
+        public string Status { get; set; } = string.Empty;
         public DateTime ScheduledDate { get; set; }
-        public decimal TotalPrice { get; set; }
-        public string PickupAddress { get; set; }
-        public string DestinationAddress { get; set; }
-        public string TrackingNumber { get; set; }
-        public string Notes { get; set; }
-        public double? EstimatedTime { get; set; }
+        public double TotalPrice { get; set; }
+        public string PickupAddress { get; set; } = string.Empty;
+        public string DestinationAddress { get; set; } = string.Empty;
+        public string? Notes { get; set; }
         public double? Distance { get; set; }
+        public double? Duration { get; set; }
+        public string? TrackingCode { get; set; }
+        public string? PaymentStatus { get; set; }
+        public bool IsReviewed { get; set; }
         public List<DeliveryItemDTO> Items { get; set; } = new List<DeliveryItemDTO>();
-        public PaymentDTO? Payment { get; set; }
     }
 
-    public class DeliveryItemDTO
+    // Create Delivery Request
+    public class CreateDeliveryRequest
     {
-        public int Id { get; set; }
-        public int DeliveryId { get; set; }
+        public DateTime ScheduledDate { get; set; }
+        public string PickupAddress { get; set; } = string.Empty;
+        public string DestinationAddress { get; set; } = string.Empty;
+        public string? Notes { get; set; }
+        public List<CreateDeliveryItemRequest> Items { get; set; } = new List<CreateDeliveryItemRequest>();
+    }
+
+    // Create Delivery Item Request
+    public class CreateDeliveryItemRequest
+    {
         public int FurnitureId { get; set; }
-        public FurnitureDTO Furniture { get; set; }
         public int Quantity { get; set; }
         public bool SpecialHandling { get; set; }
     }
 
-    public class FurnitureDTO
+    // Update Delivery Status Request
+    public class UpdateDeliveryStatusRequest
     {
-        public int Id { get; set; }
-        public string Name { get; set; }
-        public string? Description { get; set; }
-        public double Weight { get; set; }
-        public object Dimensions { get; set; }
-        public string Category { get; set; }
-        public string? ImageUrl { get; set; }
+        public string Status { get; set; } = string.Empty;
     }
 
+    // Assign Driver Request
+    public class AssignDriverRequest
+    {
+        public int DriverId { get; set; }
+    }
+
+    // Payment DTO
     public class PaymentDTO
     {
         public int Id { get; set; }
-        public int DeliveryId { get; set; }
-        public string Method { get; set; }
-        public string Status { get; set; }
-        public decimal Amount { get; set; }
         public DateTime CreatedAt { get; set; }
-        public DateTime? PaidAt { get; set; }
+        public int DeliveryId { get; set; }
+        public double Amount { get; set; }
+        public string PaymentMethod { get; set; } = string.Empty;
+        public string Status { get; set; } = string.Empty;
+        public string? TransactionId { get; set; }
     }
 
-    public class DriverLocationUpdate
-    {
-        public int DriverId { get; set; }
-        public GeoLocation Location { get; set; }
-    }
-
-    public class GeoLocation
-    {
-        public double Latitude { get; set; }
-        public double Longitude { get; set; }
-    }
-
-    public class DeliveryStatusUpdate
+    // Create Payment Request
+    public class CreatePaymentRequest
     {
         public int DeliveryId { get; set; }
-        public string Status { get; set; }
+        public double Amount { get; set; }
+        public string PaymentMethod { get; set; } = string.Empty;
     }
 
-    public class WebSocketMessage
+    // Review DTO
+    public class ReviewDTO
     {
-        public string Type { get; set; }
-        public object Data { get; set; }
+        public int Id { get; set; }
+        public DateTime CreatedAt { get; set; }
+        public int DeliveryId { get; set; }
+        public int CustomerId { get; set; }
+        public UserDTO? Customer { get; set; }
+        public int DriverId { get; set; }
+        public DriverDTO? Driver { get; set; }
+        public int Rating { get; set; }
+        public string? Comment { get; set; }
+    }
+
+    // Create Review Request
+    public class CreateReviewRequest
+    {
+        public int DeliveryId { get; set; }
+        public int DriverId { get; set; }
+        public int Rating { get; set; }
+        public string? Comment { get; set; }
+    }
+
+    // Message DTO
+    public class MessageDTO
+    {
+        public int Id { get; set; }
+        public DateTime CreatedAt { get; set; }
+        public int DeliveryId { get; set; }
+        public int SenderId { get; set; }
+        public UserDTO? Sender { get; set; }
+        public int RecipientId { get; set; }
+        public UserDTO? Recipient { get; set; }
+        public string Content { get; set; } = string.Empty;
+        public bool IsRead { get; set; }
+    }
+
+    // Send Message Request
+    public class SendMessageRequest
+    {
+        public int DeliveryId { get; set; }
+        public int RecipientId { get; set; }
+        public string Content { get; set; } = string.Empty;
+    }
+
+    // Notification DTO
+    public class NotificationDTO
+    {
+        public int Id { get; set; }
+        public DateTime CreatedAt { get; set; }
+        public int UserId { get; set; }
+        public string Type { get; set; } = string.Empty;
+        public string Title { get; set; } = string.Empty;
+        public string Message { get; set; } = string.Empty;
+        public bool IsRead { get; set; }
+        public string? RelatedEntityType { get; set; }
+        public int? RelatedEntityId { get; set; }
     }
 }

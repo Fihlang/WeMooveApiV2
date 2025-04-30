@@ -5,22 +5,36 @@ namespace FurnitureDelivery.API.Services
     public interface INotificationService
     {
         /// <summary>
-        /// Creates a new notification for a user
+        /// Creates a notification for a user
         /// </summary>
-        /// <param name="userId">The ID of the user to receive the notification</param>
-        /// <param name="type">The notification type (e.g., "info", "success", "warning", "error")</param>
+        /// <param name="userId">The user ID</param>
+        /// <param name="type">The notification type (info, success, warning, error)</param>
         /// <param name="title">The notification title</param>
         /// <param name="message">The notification message</param>
-        /// <param name="relatedEntityType">Optional. The type of related entity (e.g., "delivery", "driver")</param>
-        /// <param name="relatedEntityId">Optional. The ID of the related entity</param>
+        /// <param name="relatedEntityType">The related entity type (optional)</param>
+        /// <param name="relatedEntityId">The related entity ID (optional)</param>
         /// <returns>The created notification</returns>
         Task<Notification> CreateNotification(
-            int userId,
-            string type,
-            string title,
-            string message,
-            string? relatedEntityType = null,
+            int userId, 
+            string type, 
+            string title, 
+            string message, 
+            string? relatedEntityType = null, 
             int? relatedEntityId = null);
+        
+        /// <summary>
+        /// Gets all notifications for a user
+        /// </summary>
+        /// <param name="userId">The user ID</param>
+        /// <returns>A list of notifications</returns>
+        Task<List<Notification>> GetNotificationsByUserId(int userId);
+        
+        /// <summary>
+        /// Gets all unread notifications for a user
+        /// </summary>
+        /// <param name="userId">The user ID</param>
+        /// <returns>A list of unread notifications</returns>
+        Task<List<Notification>> GetUnreadNotificationsByUserId(int userId);
         
         /// <summary>
         /// Marks a notification as read
@@ -30,17 +44,25 @@ namespace FurnitureDelivery.API.Services
         Task<Notification> MarkNotificationAsRead(int notificationId);
         
         /// <summary>
-        /// Gets all notifications for a user
+        /// Marks all notifications for a user as read
         /// </summary>
         /// <param name="userId">The user ID</param>
-        /// <returns>List of notifications</returns>
-        Task<List<Notification>> GetNotificationsForUser(int userId);
+        /// <returns>The number of notifications marked as read</returns>
+        Task<int> MarkAllNotificationsAsRead(int userId);
         
         /// <summary>
-        /// Gets unread notifications for a user
+        /// Sends notification to all relevant users about a delivery status change
         /// </summary>
-        /// <param name="userId">The user ID</param>
-        /// <returns>List of unread notifications</returns>
-        Task<List<Notification>> GetUnreadNotificationsForUser(int userId);
+        /// <param name="deliveryId">The delivery ID</param>
+        /// <param name="status">The new status</param>
+        /// <returns>The number of notifications sent</returns>
+        Task<int> NotifyDeliveryStatusChange(int deliveryId, string status);
+        
+        /// <summary>
+        /// Sends notification to all relevant users about a new message
+        /// </summary>
+        /// <param name="messageId">The message ID</param>
+        /// <returns>The number of notifications sent</returns>
+        Task<int> NotifyNewMessage(int messageId);
     }
 }

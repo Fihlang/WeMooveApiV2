@@ -16,75 +16,44 @@ namespace FurnitureDelivery.API.Services
             _configuration = configuration;
         }
 
-        public (byte[] passwordHash, byte[] passwordSalt) HashPassword(string password)
-        {
-            using (var hmac = new HMACSHA512())
-            {
-                var passwordSalt = hmac.Key;
-                var passwordHash = hmac.ComputeHash(Encoding.UTF8.GetBytes(password));
-                
-                return (passwordHash, passwordSalt);
-            }
-        }
-
-        public bool VerifyPassword(string password, byte[] passwordHash, byte[] passwordSalt)
-        {
-            using (var hmac = new HMACSHA512(passwordSalt))
-            {
-                var computedHash = hmac.ComputeHash(Encoding.UTF8.GetBytes(password));
-                
-                // Compare computed hash with stored hash
-                for (int i = 0; i < computedHash.Length; i++)
-                {
-                    if (computedHash[i] != passwordHash[i])
-                    {
-                        return false;
-                    }
-                }
-                
-                return true;
-            }
-        }
-
         public string GenerateJwtToken(User user)
         {
             var claims = new List<Claim>
             {
                 new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
                 new Claim(ClaimTypes.Email, user.Email),
-                new Claim(ClaimTypes.Role, user.UserType)
+                new Claim(ClaimTypes.Role, user.UserType),
+                new Claim("FirstName", user.FirstName),
+                new Claim("LastName", user.LastName),
+                new Claim("IsVerified", user.IsVerified.ToString())
             };
-            
-            if (user.UserType == "driver" && user.Driver != null)
-            {
-                claims.Add(new Claim("DriverId", user.Driver.Id.ToString()));
-            }
-            
+
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(
                 _configuration.GetSection("JwtSettings:Secret").Value));
-            
+
             var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha512Signature);
-            
-            var token = new JwtSecurityToken(
-                claims: claims,
-                expires: DateTime.Now.AddDays(7),
-                signingCredentials: creds);
-            
-            var jwt = new JwtSecurityTokenHandler().WriteToken(token);
-            
-            return jwt;
+
+            var tokenDescriptor = new SecurityTokenDescriptor
+            {
+                Subject = new ClaimsIdentity(claims),
+                Expires = DateTime.UtcNow.AddDays(7),
+                SigningCredentials = creds
+            };
+
+            var tokenHandler = new JwtSecurityTokenHandler();
+            var token = tokenHandler.CreateToken(tokenDescriptor);
+
+            return tokenHandler.WriteToken(token);
         }
 
         public bool ValidateToken(string token)
         {
             if (string.IsNullOrEmpty(token))
-            {
                 return false;
-            }
-            
+
             var tokenHandler = new JwtSecurityTokenHandler();
             var key = Encoding.UTF8.GetBytes(_configuration.GetSection("JwtSettings:Secret").Value);
-            
+
             try
             {
                 tokenHandler.ValidateToken(token, new TokenValidationParameters
@@ -93,16 +62,44 @@ namespace FurnitureDelivery.API.Services
                     IssuerSigningKey = new SymmetricSecurityKey(key),
                     ValidateIssuer = false,
                     ValidateAudience = false,
-                    // Set clock skew to zero so tokens expire exactly at token expiration time
                     ClockSkew = TimeSpan.Zero
-                }, out SecurityToken validatedToken);
+                }, out var validatedToken);
+
+                var jwtToken = (JwtSecurityToken)validatedToken;
                 
+                // Additional validation can be done here if needed
+                // For example, checking if the user still exists in the database
+
                 return true;
             }
             catch
             {
+                // Token validation failed
                 return false;
             }
+        }
+
+        public (byte[] passwordHash, byte[] passwordSalt) HashPassword(string password)
+        {
+            using var hmac = new HMACSHA512();
+            var passwordSalt = hmac.Key;
+            var passwordHash = hmac.ComputeHash(Encoding.UTF8.GetBytes(password));
+
+            return (passwordHash, passwordSalt);
+        }
+
+        public bool VerifyPassword(string password, byte[] storedHash, byte[] storedSalt)
+        {
+            using var hmac = new HMACSHA512(storedSalt);
+            var computedHash = hmac.ComputeHash(Encoding.UTF8.GetBytes(password));
+
+            for (int i = 0; i < computedHash.Length; i++)
+            {
+                if (computedHash[i] != storedHash[i])
+                    return false;
+            }
+
+            return true;
         }
     }
 }
