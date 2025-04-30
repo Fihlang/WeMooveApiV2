@@ -1,5 +1,6 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
+import { WebSocketServer, WebSocket } from "ws";
 import { storage } from "./storage";
 import { z } from "zod";
 import { 
@@ -232,5 +233,152 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   const httpServer = createServer(app);
+  
+  // Set up WebSocket server on a distinct path
+  const wss = new WebSocketServer({ server: httpServer, path: '/ws' });
+  
+  // Active connections store
+  const clients = new Map<string, { 
+    userId?: number; 
+    userType?: string;
+    driverId?: number;
+    socket: WebSocket; 
+  }>();
+  
+  wss.on('connection', (socket) => {
+    const clientId = Math.random().toString(36).substring(2, 15);
+    clients.set(clientId, { socket });
+    
+    console.log(`WebSocket client connected: ${clientId}`);
+    
+    // Send a welcome message
+    socket.send(JSON.stringify({ 
+      type: 'connected', 
+      message: 'Successfully connected to WebSocket server',
+      clientId 
+    }));
+    
+    // Handle messages from clients
+    socket.on('message', (message) => {
+      try {
+        const data = JSON.parse(message.toString());
+        console.log('Received message:', data);
+        
+        // Handle different message types
+        switch (data.type) {
+          case 'authenticate':
+            // Authenticate the user and associate them with this connection
+            if (data.userId) {
+              const client = clients.get(clientId);
+              if (client) {
+                client.userId = data.userId;
+                client.userType = data.userType;
+                
+                if (data.userType === 'driver' && data.driverId) {
+                  client.driverId = data.driverId;
+                }
+                
+                clients.set(clientId, client);
+                
+                socket.send(JSON.stringify({ 
+                  type: 'authenticated', 
+                  userId: data.userId,
+                  userType: data.userType
+                }));
+              }
+            }
+            break;
+            
+          case 'driver_location_update':
+            // Update driver location and broadcast to relevant clients
+            if (data.driverId && data.latitude && data.longitude) {
+              // In a real app, we'd update the database
+              // For now, just broadcast to relevant clients
+              broadcastToDelivery(data.deliveryId, {
+                type: 'driver_location_update',
+                driverId: data.driverId,
+                latitude: data.latitude,
+                longitude: data.longitude,
+                timestamp: new Date()
+              });
+            }
+            break;
+            
+          case 'delivery_status_update':
+            // Update delivery status and broadcast to relevant clients
+            if (data.deliveryId && data.status) {
+              // In a real app, we'd update the database
+              // For now, just broadcast to relevant clients
+              broadcastToDelivery(data.deliveryId, {
+                type: 'delivery_status_update',
+                deliveryId: data.deliveryId,
+                status: data.status,
+                timestamp: new Date()
+              });
+            }
+            break;
+            
+          case 'new_message':
+            // Handle a new message and broadcast to delivery participants
+            if (data.message && data.message.deliveryId) {
+              broadcastToDelivery(data.message.deliveryId, {
+                type: 'new_message',
+                message: data.message,
+                timestamp: new Date()
+              });
+            }
+            break;
+            
+          default:
+            console.log(`Unknown message type: ${data.type}`);
+        }
+      } catch (error) {
+        console.error('Error handling WebSocket message:', error);
+      }
+    });
+    
+    // Handle disconnection
+    socket.on('close', () => {
+      clients.delete(clientId);
+      console.log(`WebSocket client disconnected: ${clientId}`);
+    });
+    
+    // Handle errors
+    socket.on('error', (error) => {
+      console.error(`WebSocket error for client ${clientId}:`, error);
+      clients.delete(clientId);
+    });
+  });
+  
+  // Function to broadcast a message to all clients associated with a delivery
+  function broadcastToDelivery(deliveryId: number, message: any) {
+    // In a real app, we'd query the database to find the customer and driver
+    // For now, just broadcast to all authenticated clients
+    for (const [_, client] of clients) {
+      if (client.socket.readyState === WebSocket.OPEN) {
+        client.socket.send(JSON.stringify(message));
+      }
+    }
+  }
+  
+  // Function to send a notification to a specific user
+  function sendToUser(userId: number, message: any) {
+    for (const [_, client] of clients) {
+      if (client.userId === userId && client.socket.readyState === WebSocket.OPEN) {
+        client.socket.send(JSON.stringify(message));
+        break;
+      }
+    }
+  }
+  
+  // Function to broadcast to all driver clients
+  function broadcastToDrivers(message: any) {
+    for (const [_, client] of clients) {
+      if (client.userType === 'driver' && client.socket.readyState === WebSocket.OPEN) {
+        client.socket.send(JSON.stringify(message));
+      }
+    }
+  }
+  
   return httpServer;
 }
